@@ -100,10 +100,29 @@ binding source.)
      `CookieAuthenticationEvents.OnValidatePrincipal` defaults to a non-null no-op.
      Assert delegate identity, never null-ness. Mutation-tested both ways.
    Also: `SecurityStampValidationInterval` defaults to 1 minute, not Identity's 30.
-3. **Auth services** — `IAuthService` (register / sign-in+lockout / sign-out /
-   me / confirm / reset) against Identity abstractions, plus session rotation on
-   sign-in and privilege change. Unit-test with an in-memory user store; cover
-   rotation with a test that asserts the pre-change cookie stops authenticating.
+3. **Auth services** — *done.* `IAuthService` + `AuthService`, `IAuthEmailSender`,
+   background email delivery, and the reset/confirm token lifetime split. 65 tests
+   against an in-memory store; the security-critical assertions are
+   mutation-tested (each fails when its fix is removed).
+   Identity's disclosure defaults that had to be undone, all confirmed in source:
+   - `PasswordSignInAsync` skips hashing entirely for an unknown user, so an
+     unknown address answers faster than a real one. Every path that skips
+     verification now pays the hash.
+   - `LockedOut`/`NotAllowed` are decided *before* the password check, so both
+     announce an account exists to someone who does not know its password. They
+     collapse into the generic failure.
+   - `CreateAsync` surfaces `DuplicateEmail`; registration reports success for a
+     taken address and notifies the owner by email instead.
+   - `ConfirmEmailAsync` does not rotate the stamp; we do, since confirmation is
+     a privilege change.
+   Password reset queues the address and returns — awaiting SMTP only for
+   addresses that exist was a stopwatch-visible existence oracle, whatever the
+   response body said. Background delivery and the token split both use
+   Microsoft's official samples (MIT, see `THIRD-PARTY-NOTICES.txt`).
+   Still open: `RotateSessionAsync` is covered only for the signed-out case. The
+   test PLAN.md asks for — a pre-change cookie ceasing to authenticate — needs a
+   real request pipeline, so it belongs with the consumer smoke test in
+   milestone 7.
 4. **EF Core store package** — `Authentication.EntityFrameworkCore` with the
    default Identity store + migrations guidance. In v1 scope; separate package,
    optional for the host to reference.
