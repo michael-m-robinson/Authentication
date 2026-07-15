@@ -111,9 +111,23 @@ public interface IAuthService
     /// </returns>
     /// <remarks>
     /// The invariable success is the security property, not sloppiness: reporting
-    /// "no such account" here is the classic enumeration oracle, and this mirrors the
-    /// pattern in Microsoft's own scaffolded forgot-password page. An unregistered or
+    /// "no such account" here is the classic enumeration oracle. An unregistered or
     /// unconfirmed address simply receives nothing.
+    /// <para>
+    /// <strong>The work happens in the background.</strong> This method queues the
+    /// address and returns; the lookup, the token and the send all happen on a
+    /// background dispatcher. That is deliberate — awaiting an email for registered
+    /// addresses only would make them answer an SMTP round-trip slower than unknown
+    /// ones, which is the same disclosure the uniform response body prevents, handed
+    /// back to anyone with a stopwatch.
+    /// </para>
+    /// <para>
+    /// Consequences worth knowing: a send that fails is logged, not returned, since
+    /// there is no caller left to return it to; and queued requests are held in memory,
+    /// so a process that dies loses them. The queue is bounded, so under sustained load
+    /// this waits for capacity — see
+    /// <see cref="ReusableAuthOptions.BackgroundEmailQueueCapacity"/>.
+    /// </para>
     /// </remarks>
     Task<AuthResult> RequestPasswordResetAsync(string email);
 

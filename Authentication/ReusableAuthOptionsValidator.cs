@@ -18,6 +18,7 @@ internal sealed class ReusableAuthOptionsValidator : IValidateOptions<ReusableAu
         List<string> failures = [];
         ValidateCookies(options, failures);
         ValidateSession(options, failures);
+        ValidateTokenLifetimes(options, failures);
         ValidatePasswordPolicy(options, failures);
         ValidateLockoutPolicy(options, failures);
 
@@ -83,6 +84,29 @@ internal sealed class ReusableAuthOptionsValidator : IValidateOptions<ReusableAu
             failures.Add(
                 $"{nameof(options.SecurityStampValidationInterval)} must not be negative. " +
                 "Use TimeSpan.Zero to revalidate on every request.");
+        }
+
+        // Channel.CreateBounded rejects a capacity below 1 anyway; catching it here turns
+        // an obscure ArgumentOutOfRangeException from the queue's constructor into a
+        // startup message that names the option.
+        if (options.BackgroundEmailQueueCapacity < 1)
+        {
+            failures.Add($"{nameof(options.BackgroundEmailQueueCapacity)} must be at least 1.");
+        }
+    }
+
+    private static void ValidateTokenLifetimes(ReusableAuthOptions options, List<string> failures)
+    {
+        // A non-positive lifespan makes every token expire the instant it is minted, so
+        // password reset and email confirmation would break with nothing to show why.
+        if (options.PasswordResetTokenLifetime <= TimeSpan.Zero)
+        {
+            failures.Add($"{nameof(options.PasswordResetTokenLifetime)} must be greater than zero.");
+        }
+
+        if (options.EmailConfirmationTokenLifetime <= TimeSpan.Zero)
+        {
+            failures.Add($"{nameof(options.EmailConfirmationTokenLifetime)} must be greater than zero.");
         }
     }
 

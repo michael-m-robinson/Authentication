@@ -46,7 +46,8 @@ public static class ReusableAuthServiceCollectionExtensions
     /// Adds the reusable auth stack over a host-supplied user type.
     /// </summary>
     /// <typeparam name="TUser">
-    /// The user type, deriving from <see cref="IdentityUser"/>.
+    /// The user type, deriving from <see cref="IdentityUser"/> and having a
+    /// parameterless constructor so registration can create one.
     /// </typeparam>
     /// <param name="services">The service collection to add to.</param>
     /// <param name="configure">
@@ -58,7 +59,7 @@ public static class ReusableAuthServiceCollectionExtensions
     public static IServiceCollection AddReusableAuth<TUser>(
         this IServiceCollection services,
         Action<ReusableAuthOptions>? configure = null)
-        where TUser : IdentityUser<string>
+        where TUser : IdentityUser<string>, new()
     {
         ArgumentNullException.ThrowIfNull(services);
 
@@ -113,7 +114,7 @@ public static class ReusableAuthServiceCollectionExtensions
     }
 
     private static void RegisterIdentity<TUser>(IServiceCollection services)
-        where TUser : IdentityUser<string>
+        where TUser : IdentityUser<string>, new()
     {
         services.AddHttpContextAccessor();
 
@@ -127,17 +128,42 @@ public static class ReusableAuthServiceCollectionExtensions
             .Configure<IOptions<ReusableAuthOptions>>(
                 (stamp, auth) => stamp.ValidationInterval = auth.Value.SecurityStampValidationInterval);
 
+        // Reset tokens expire sooner than confirmation tokens, and Identity points both
+        // purposes at one shared provider with a single lifespan - so reset needs a
+        // provider of its own. AddTokenProvider both registers the type and adds it to
+        // the provider map; ApplyIdentityPolicy then points the reset purpose at it.
+        services.AddOptions<PasswordResetTokenProviderOptions>()
+            .Configure<IOptions<ReusableAuthOptions>>(
+                (token, auth) => token.TokenLifespan = auth.Value.PasswordResetTokenLifetime);
+
+        // The default provider covers email confirmation (and change-email).
+        services.AddOptions<DataProtectionTokenProviderOptions>()
+            .Configure<IOptions<ReusableAuthOptions>>(
+                (token, auth) => token.TokenLifespan = auth.Value.EmailConfirmationTokenLifetime);
+
         // AddIdentityCore, not AddIdentity: the latter registers its own cookie
         // schemes and would fight the hardened one configured above. AddSignInManager
         // already brings ISecurityStampValidator and ITwoFactorSecurityStampValidator
         // with it, which is what the cookies' OnValidatePrincipal resolves.
         services.AddIdentityCore<TUser>()
             .AddDefaultTokenProviders()
+            .AddTokenProvider<PasswordResetTokenProvider<TUser>>(
+                ReusableAuthOptions.PasswordResetTokenProviderName)
             .AddSignInManager();
 
         // Stamp validation silently no-ops on a store without IUserSecurityStampStore,
         // so refuse to boot rather than pretend sessions can be revoked.
         services.AddHostedService<SecurityStampStoreGuard<TUser>>();
+
+        // Scoped: it reads the current request's principal. The host still has to
+        // supply IAuthEmailSender; the library mints tokens but never sends mail.
+        services.TryAddScoped<IAuthService, AuthService<TUser>>();
+
+        // Auth emails are sent off the request thread, so that asking for a password
+        // reset takes the same time whether or not the address is registered. Singleton
+        // queue, one background reader.
+        services.TryAddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
+        services.AddHostedService<QueuedHostedService>();
     }
 
     private static void RegisterAntiforgery(IServiceCollection services)
@@ -244,6 +270,10 @@ public static class ReusableAuthServiceCollectionExtensions
 
         identity.SignIn.RequireConfirmedEmail = auth.RequireConfirmedEmail;
         identity.User.RequireUniqueEmail = auth.RequireUniqueEmail;
+
+        // Point the reset purpose at our shorter-lived provider. Email confirmation is
+        // left on Identity's default provider.
+        identity.Tokens.PasswordResetTokenProvider = ReusableAuthOptions.PasswordResetTokenProviderName;
     }
 
     private static Func<RedirectContext<CookieAuthenticationOptions>, Task> RespondWith(int statusCode)

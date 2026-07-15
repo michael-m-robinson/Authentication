@@ -84,6 +84,27 @@ public sealed class ReusableAuthOptions
     public TimeSpan SecurityStampValidationInterval { get; set; } = TimeSpan.FromMinutes(1);
 
     /// <summary>
+    /// How many auth emails may be waiting to be sent before callers are made to wait
+    /// for room. Defaults to 1000.
+    /// </summary>
+    /// <remarks>
+    /// Auth emails are sent off the request thread, so that
+    /// <see cref="IAuthService.RequestPasswordResetAsync"/> takes the same time for a
+    /// registered address as for an unknown one — awaiting an SMTP call only for
+    /// addresses that exist would answer "does this account exist" to anyone holding a
+    /// stopwatch.
+    /// <para>
+    /// The queue is bounded because the endpoints behind it are unauthenticated: an
+    /// unbounded one would let anyone grow it until the process ran out of memory. When
+    /// it is full, callers wait for capacity (backpressure) rather than having their
+    /// email silently dropped. That wait does not depend on the address, so it discloses
+    /// nothing — but it does mean a flood can slow these endpoints down. Rate limiting
+    /// them remains the host's job.
+    /// </para>
+    /// </remarks>
+    public int BackgroundEmailQueueCapacity { get; set; } = 1000;
+
+    /// <summary>
     /// Name of the CSRF cookie. Defaults to <c>__Host-csrf</c>; the same
     /// <c>__Host-</c> reasoning as <see cref="CookieName"/> applies.
     /// </summary>
@@ -143,6 +164,37 @@ public sealed class ReusableAuthOptions
     public bool LockoutEnabledForNewUsers { get; set; } = true;
 
     /// <summary>
+    /// How long a password-reset link stays usable. Defaults to 1 hour.
+    /// </summary>
+    /// <remarks>
+    /// Shorter than <see cref="EmailConfirmationTokenLifetime"/> on purpose. A reset link
+    /// is a bearer credential for the account: anyone who reads it owns the account, and
+    /// it sits in an inbox — which is exactly where it is most likely to be read by
+    /// someone else. An hour is ample for a real person to click a link they just asked
+    /// for.
+    /// <para>
+    /// Identity gives every data-protection token one shared 1-day lifespan; honouring
+    /// this separately is why the library registers a reset token provider of its own.
+    /// </para>
+    /// </remarks>
+    public TimeSpan PasswordResetTokenLifetime { get; set; } = TimeSpan.FromHours(1);
+
+    /// <summary>
+    /// How long an email-confirmation link stays usable. Defaults to 1 day, matching
+    /// Identity.
+    /// </summary>
+    /// <remarks>
+    /// Longer than <see cref="PasswordResetTokenLifetime"/> because it grants far less —
+    /// it proves an address, it does not hand over an account — and because confirmation
+    /// mail is routinely read the next morning.
+    /// <para>
+    /// This sets the lifespan of Identity's default data-protection token provider, so it
+    /// also governs change-email tokens.
+    /// </para>
+    /// </remarks>
+    public TimeSpan EmailConfirmationTokenLifetime { get; set; } = TimeSpan.FromDays(1);
+
+    /// <summary>
     /// Whether an email address must be confirmed before the user can sign in.
     /// Defaults to <see langword="true"/>.
     /// </summary>
@@ -164,6 +216,12 @@ public sealed class ReusableAuthOptions
     /// path-scoped guarantees.
     /// </summary>
     internal const string HostCookiePrefix = "__Host-";
+
+    /// <summary>
+    /// The key the password-reset token provider is registered under in Identity's
+    /// provider map.
+    /// </summary>
+    internal const string PasswordResetTokenProviderName = "ReusableAuthPasswordReset";
 
     /// <summary>
     /// Suffix for the short-lived cookie that carries the user id between the password
