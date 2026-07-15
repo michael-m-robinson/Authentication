@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Shared settings (framework, analyzers, license, version) come from
+       ../Directory.Build.props. -->
+
+  <PropertyGroup>
+    <PackageId>Authentication</PackageId>
+    <Description>A reusable, project-agnostic authentication library for ASP.NET Core, built on ASP.NET Core Identity. Provides a hardened session model - an httpOnly, Secure, SameSite cookie with double-submit CSRF - composed through DI and options. Storage-agnostic: the host supplies the store.</Description>
+    <PackageTags>authentication;identity;aspnetcore;security;csrf;cookie</PackageTags>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+</Project>

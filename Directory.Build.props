@@ -1,0 +1,37 @@
+<Project>
+
+  <!-- Settings shared by every project in the repo. Package-specific metadata
+       (PackageId, Description) lives in the individual .csproj. -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <!-- rules/code-quality.md: analyzers on, warnings are errors, nothing ships
+       with a warning we chose to ignore. -->
+  <PropertyGroup>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+  </PropertyGroup>
+
+  <!-- rules/packaging.md: consumers get XML docs. Test projects turn this off. -->
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- Shared package metadata. RepositoryUrl/PublishRepositoryUrl and Source Link
+       are deliberately absent until the repo has a remote. -->
+  <PropertyGroup>
+    <Version>0.1.0</Version>
+    <Authors>Michael Robinson</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+</Project>
