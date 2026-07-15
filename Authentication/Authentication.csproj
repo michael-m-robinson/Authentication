@@ -15,4 +15,19 @@
     <None Include="../README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 
+  <!-- Identity, the cookie handler and antiforgery all ship in the shared
+       framework. A FrameworkReference takes them from there rather than pulling
+       NuGet packages, which is the "prefer the framework over a package" half of
+       rules/security.md: zero added supply-chain surface, first-party only. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!-- The validator and the startup guard are internal by default per
+       rules/code-quality.md, but both enforce security invariants and must be
+       tested directly rather than through a public seam. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Authentication.Tests" />
+  </ItemGroup>
+
 </Project>

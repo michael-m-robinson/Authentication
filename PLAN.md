@@ -86,8 +86,20 @@ binding source.)
    0 warnings, 1 test passing, `dotnet pack` produces a valid nupkg + snupkg.
    Outstanding: `RepositoryUrl`/`PublishRepositoryUrl` + Source Link need a
    remote.
-2. **Options + DI core** — `ReusableAuthOptions` with secure defaults and
-   `AddReusableAuth` wiring Identity + cookie + CSRF. Unit-test the defaults.
+2. **Options + DI core** — *done.* `ReusableAuthOptions` (secure defaults, startup
+   validation) and `AddReusableAuth` wiring Identity, the hardened cookie, the 2FA
+   schemes and antiforgery. 25 tests. Research against the aspnetcore source caught
+   three defects worth recording:
+   - `OnValidatePrincipal` was unwired, so the security stamp was never checked and
+     session invalidation did not exist at all. `AddIdentity` does this for you; we
+     do not use `AddIdentity`, so we must.
+   - Identity fails *open* when a store lacks `IUserSecurityStampStore<TUser>`:
+     `ValidateSecurityStampAsync` silently returns true. `SecurityStampStoreGuard`
+     now refuses to boot instead.
+   - The regression test for the first defect passed with the fix removed, because
+     `CookieAuthenticationEvents.OnValidatePrincipal` defaults to a non-null no-op.
+     Assert delegate identity, never null-ness. Mutation-tested both ways.
+   Also: `SecurityStampValidationInterval` defaults to 1 minute, not Identity's 30.
 3. **Auth services** — `IAuthService` (register / sign-in+lockout / sign-out /
    me / confirm / reset) against Identity abstractions, plus session rotation on
    sign-in and privilege change. Unit-test with an in-memory user store; cover
