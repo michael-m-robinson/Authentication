@@ -9,7 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Authentication.EntityFrameworkCore.Tests;
 
 /// <summary>
-/// Runs the README's "Adding your own data" pattern for real — the one hosts are pointed
+/// Runs the README's "Adding your own data" pattern for real: the one hosts are pointed
 /// at for alerts, likes, or anything else the library deliberately does not model.
 /// </summary>
 /// <remarks>

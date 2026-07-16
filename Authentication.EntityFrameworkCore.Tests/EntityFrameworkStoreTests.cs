@@ -165,7 +165,7 @@ public sealed class EntityFrameworkStoreTests : IDisposable
     {
         // Asserted against the real store because it is the store's doing: Identity hands it
         // a normalised name to write, and it joins back to the roles table on read to
-        // recover the original. That matters — the claim written into the cookie is this
+        // recover the original. That matters, because the claim written into the cookie is this
         // value, and [Authorize(Roles = "Admins")] compares it CASE-SENSITIVELY. If this
         // ever returned "ADMINS", every role check written the obvious way would silently
         // stop matching.

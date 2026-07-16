@@ -1,4 +1,4 @@
-## Code quality — keep the analyzer/SonarQube report clean
+## Code quality: keep the analyzer/SonarQube report clean
 
 - Target `net10.0`; keep `Nullable` and `ImplicitUsings` enabled. Treat nullable
   warnings as real; do not `!`-suppress to silence them without justification.

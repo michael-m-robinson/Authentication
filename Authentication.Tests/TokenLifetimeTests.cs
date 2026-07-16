@@ -12,7 +12,7 @@ namespace Authentication.Tests;
 /// <remarks>
 /// Identity points email confirmation, password reset and change-email at one shared
 /// provider with a single lifespan, so a reset link would live as long as a confirmation
-/// link — a day — unless reset gets a provider of its own. These tests exist because the
+/// link (a day) unless reset gets a provider of its own. These tests exist because the
 /// XML docs promise callers an hour, and a promise nothing enforces is worse than no
 /// promise.
 /// </remarks>

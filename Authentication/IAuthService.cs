@@ -16,7 +16,7 @@ namespace Authentication;
 /// </para>
 /// <para>
 /// <strong>Failures never disclose why.</strong> Unknown account, wrong password,
-/// locked out, unconfirmed, expired token — all return the same
+/// locked out, unconfirmed, expired token: all return the same
 /// <see cref="AuthStatus.Failed"/>, and the timing is levelled so the elapsed time does
 /// not disclose it either. Anything a user genuinely needs to be told is sent over a
 /// channel that already proves they own the account, i.e. email.
@@ -49,7 +49,7 @@ public interface IAuthService
     /// <paramref name="email"/> is already registered, this still reports success and
     /// instead emails the existing address to say someone tried to register with it.
     /// Reporting anything else would confirm the address has an account, which is the
-    /// enumeration leak <c>rules/security.md</c> forbids — Identity's own
+    /// enumeration leak <c>rules/security.md</c> forbids. Identity's own
     /// <c>DuplicateEmail</c> error is never surfaced.
     /// <para>
     /// A rejected password is reported, because that describes the password just typed
@@ -75,7 +75,7 @@ public interface IAuthService
     /// Failure is uniform: an unknown address, a wrong password, a locked-out account
     /// and an unconfirmed account are indistinguishable to the caller, and the work
     /// done is levelled so they are indistinguishable by timing too. Lockout still
-    /// applies — it is simply not announced.
+    /// applies, it is simply not announced.
     /// </remarks>
     Task<AuthResult> SignInAsync(string email, string password, bool isPersistent = false);
 
@@ -98,7 +98,7 @@ public interface IAuthService
     /// step leaves behind to know who is signing in. Without it there is nothing to
     /// complete, and the result is an ordinary failure.
     /// <para>
-    /// Failure is generic, as everywhere else. There is nothing to disclose anyway — the
+    /// Failure is generic, as everywhere else. There is nothing to disclose anyway, since the
     /// caller has already proved they hold the password to get here.
     /// </para>
     /// </remarks>
@@ -113,7 +113,7 @@ public interface IAuthService
     /// </returns>
     /// <remarks>
     /// This is the way back in for someone who has lost their authenticator. Each code works
-    /// once and is spent on use, so remaining codes run down — see
+    /// once and is spent on use, so remaining codes run down. See
     /// <see cref="IAccountService.CountRecoveryCodesAsync"/>.
     /// </remarks>
     Task<AuthResult> RedeemRecoveryCodeAsync(string recoveryCode);
@@ -155,7 +155,7 @@ public interface IAuthService
     /// <para>
     /// <strong>The work happens in the background.</strong> This method queues the
     /// address and returns; the lookup, the token and the send all happen on a
-    /// background dispatcher. That is deliberate — awaiting an email for registered
+    /// background dispatcher. That is deliberate: awaiting an email for registered
     /// addresses only would make them answer an SMTP round-trip slower than unknown
     /// ones, which is the same disclosure the uniform response body prevents, handed
     /// back to anyone with a stopwatch.
@@ -164,7 +164,7 @@ public interface IAuthService
     /// Consequences worth knowing: a send that fails is logged, not returned, since
     /// there is no caller left to return it to; and queued requests are held in memory,
     /// so a process that dies loses them. The queue is bounded, so under sustained load
-    /// this waits for capacity — see
+    /// this waits for capacity. See
     /// <see cref="ReusableAuthOptions.BackgroundEmailQueueCapacity"/>.
     /// </para>
     /// </remarks>
@@ -218,7 +218,7 @@ public interface IAuthService
     /// <remarks>
     /// This exists because Identity will not do it for you. <c>UserManager</c> refreshes
     /// the security stamp automatically when a password changes, but <em>not</em> when
-    /// roles or claims change — so without calling this after a privilege change, the
+    /// roles or claims change, so without calling this after a privilege change the
     /// user's existing cookies keep their old claims until they expire, and a
     /// just-revoked administrator stays an administrator. <c>PLAN.md</c> makes rotation
     /// on privilege change a v1 invariant; for role and claim edits this method is how

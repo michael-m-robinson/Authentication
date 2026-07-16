@@ -11,7 +11,7 @@ methods; you keep your own routes, pages and components. That works the same in
 MVC, Blazor, or anything else.
 
 **It is mostly Microsoft's code.** ASP.NET Core Identity already ships the hard,
-security-reviewed parts — the password hasher, the cookie handler, the token
+security-reviewed parts: the password hasher, the cookie handler, the token
 providers, the EF Core store. This library wires them together with secure
 defaults, closes the places Identity leaks information by default, and refuses to
 start when it's configured into something unsafe. It contains no cryptography,
@@ -110,7 +110,7 @@ app.MapPost("/login", async (LoginRequest req, IAuthService auth) =>
 
 Anything implementing `IUserStore<TUser>`, `IUserSecurityStampStore<TUser>`,
 `IUserRoleStore<TUser>` and `IRoleStore<IdentityRole>`. Easiest is the EF Core
-package — see [below](#entity-framework-core-storage), which gives you Microsoft's
+package. See [below](#entity-framework-core-storage), which gives you Microsoft's
 store and satisfies all of them.
 
 `IUserSecurityStampStore` is not optional. Without it, Identity silently treats
@@ -148,7 +148,7 @@ public sealed class MyEmailSender(IEmailClient client) : IAuthEmailSender
 }
 ```
 
-Tokens arrive **URL-safe** — drop them straight into a query string, and pass them
+Tokens arrive **URL-safe**, so drop them straight into a query string and pass them
 back unchanged. The library owns both halves of that encoding so you never have to
 think about it.
 
@@ -238,7 +238,7 @@ base one address at a time. A taken address simply receives nothing.
 await account.SetPhoneNumberAsync(userId, "+44 7700 900000");
 ```
 
-> **The number is not verified.** Nothing here proves the user owns it — never treat
+> **The number is not verified.** Nothing here proves the user owns it, so never treat
 > it as a second factor or a recovery channel. Verifying means texting a code, and
 > ASP.NET Core Identity has no SMS sender at all; Microsoft's own scaffolded page
 > takes exactly the same position and calls the same unverified API.
@@ -259,7 +259,7 @@ IReadOnlyList<string> codes = await account.GenerateRecoveryCodesAsync(userId);
 ```
 
 > `AuthenticatorUri` is a **URI, not an image**. Identity doesn't render QR codes and
-> neither do we — use a client-side library. Microsoft's own page ships an empty
+> neither do we, so use a client-side library. Microsoft's own page ships an empty
 > `<div id="qrCode">` and a link to a doc saying the same.
 
 The code is verified *before* two-factor is switched on, on purpose: enabling it for
@@ -285,7 +285,7 @@ await account.DisableTwoFactorAsync(userId);       // off; their app still works
 await account.ResetAuthenticatorKeyAsync(userId);  // new key; the old app is now useless
 ```
 
-`ResetAuthenticatorKeyAsync` also switches two-factor off — leaving it on with a key
+`ResetAuthenticatorKeyAsync` also switches two-factor off, because leaving it on with a key
 nobody holds would lock the account. The user has to run setup again.
 
 Recovery codes are spent as they're used, so it's worth showing how many are left:
@@ -296,7 +296,7 @@ int left = await account.CountRecoveryCodesAsync(userId);
 
 Every change here invalidates the user's other sessions within
 `SecurityStampValidationInterval`. Identity does that itself for email, phone and
-two-factor writes — unlike role changes, which need `IRoleService` to force it.
+two-factor writes, unlike role changes, which need `IRoleService` to force it.
 
 ## Roles
 
@@ -330,7 +330,7 @@ public IActionResult Dashboard() => View();
 ```
 
 **Removing a role really removes the access.** Identity refreshes the security
-stamp when a password changes but **not** when roles change — so a plain
+stamp when a password changes but **not** when roles change, so a plain
 `UserManager.RemoveFromRoleAsync` leaves the user holding a cookie that still
 claims the role, and `[Authorize(Roles = "Admins")]` keeps letting them in until it
 expires. A revoked administrator stays an administrator. `IRoleService` refreshes
@@ -354,7 +354,7 @@ if (result.Status == AuthStatus.Rejected)
 ```
 
 That's safe because these are administrative calls made by your own code with an id
-it already holds — there's no anonymous caller to disclose anything to.
+it already holds. There's no anonymous caller to disclose anything to.
 
 **Role names are matched case-insensitively but authorised case-sensitively.**
 `AddToRoleAsync(id, "ADMINS")` finds the role you created as `"Admins"`, but the
@@ -371,7 +371,7 @@ await userManager.AddClaimAsync(user, new Claim("department", "engineering"));
 await auth.RotateSessionAsync();   // invalidate other sessions, re-issue this one
 ```
 
-`RotateSessionAsync` is the manual equivalent of what `IRoleService` does for you —
+`RotateSessionAsync` is the manual equivalent of what `IRoleService` does for you:
 Identity doesn't refresh the stamp for claim changes either.
 
 ## Behaviour that will surprise you
@@ -389,7 +389,7 @@ is never surfaced.
 account and unconfirmed account all return the same `AuthStatus.Failed`. Identity
 decides "locked out" *before* it checks the password, so passing that through would
 tell someone who doesn't know the password that the account exists. Lockout still
-applies — it just isn't announced.
+applies, it just isn't announced.
 
 **Sign-in takes the same time whether or not the address exists.** Identity returns
 early without hashing anything for an unknown user, which makes an unknown address
@@ -408,7 +408,7 @@ typed, not who is registered, so it leaks nothing.
 ## Options
 
 Everything defaults to the secure choice. `HttpOnly`, `Secure`, `Path=/` and the
-CSRF check are **not** configurable — weakening them is a breaking security change,
+CSRF check are **not** configurable. Weakening them is a breaking security change,
 not a convenience toggle.
 
 ```csharp
@@ -442,17 +442,17 @@ builder.Services.AddReusableAuth(options =>
 | `PasswordResetTokenLifetime` | 1 hour | Shorter than confirmation: a leaked reset link hands over the account. |
 | `EmailConfirmationTokenLifetime` | 1 day | |
 | `RequireConfirmedEmail` | `true` | |
-| `AuthenticatorIssuer` | `ReusableAuth` | Set to your app's name — users read it in their authenticator app. |
+| `AuthenticatorIssuer` | `ReusableAuth` | Set to your app's name; users read it in their authenticator app. |
 | `RequireUniqueEmail` | `true` | |
 | `BackgroundEmailQueueCapacity` | 1000 | Full queue applies backpressure. |
 
-A contradictory or weakened configuration **fails at startup**, not at runtime — a
+A contradictory or weakened configuration **fails at startup**, not at runtime: a
 `__Host-` cookie with a `Domain`, a password floor below 8, a relative `LoginPath`,
 a CSRF cookie sharing the session cookie's name.
 
 ### From appsettings.json
 
-Settings can live in configuration instead of code — `appsettings.json`,
+Settings can live in configuration instead of code, whether that's `appsettings.json`,
 environment variables, Key Vault, anything bound to `IConfiguration`:
 
 ```csharp
@@ -471,7 +471,7 @@ builder.Services.AddReusableAuth(builder.Configuration.GetSection("Auth"));
 ```
 
 Anything you don't set keeps its secure default, and the same startup validation
-applies — a config file can't smuggle in a setup that a line of code would have been
+applies, so a config file can't smuggle in a setup that a line of code would have been
 rejected for. You can pass both, and code wins:
 
 ```csharp
@@ -482,7 +482,7 @@ builder.Services.AddReusableAuth(builder.Configuration.GetSection("Auth"), optio
 ```
 
 > **Settings are read once, at startup. Editing configuration on a running app
-> changes nothing until it restarts** — and that is not something this library can
+> changes nothing until it restarts**, and that is not something this library can
 > fix. ASP.NET Core Identity reads its own options through `IOptions<T>`, which
 > resolves once and caches for the life of the process: `UserManager` captures the
 > password and lockout policy in its constructor, `SecurityStampValidator` captures
@@ -490,7 +490,7 @@ builder.Services.AddReusableAuth(builder.Configuration.GetSection("Auth"), optio
 > them re-read anything, whatever the configuration does. It's a known framework
 > issue ([dotnet/aspnetcore#55162](https://github.com/dotnet/aspnetcore/issues/55162))
 > and the only real fix is upstream. Bind configuration to keep settings out of code
-> and out of source control — not to change them without a restart.
+> and out of source control, not to change them without a restart.
 
 ## Entity Framework Core storage
 
@@ -511,10 +511,10 @@ public sealed class AppDbContext : ReusableAuthDbContext
 }
 ```
 
-The store is **Microsoft's** — Identity's `UserOnlyStore`. This package only wires
+The store is **Microsoft's** own `UserOnlyStore`. This package only wires
 it, supplies a context based on `IdentityUserContext` (so you don't get role tables
 this library never uses), and fails at startup if the context can't actually store
-your user type — Microsoft's own wiring accepts any `DbContext` and falls back
+your user type. Microsoft's own wiring accepts any `DbContext` and falls back
 silently to something that breaks later.
 
 Creates `AspNetUsers`, `AspNetUserClaims`, `AspNetUserLogins`, `AspNetUserTokens`,
@@ -555,8 +555,8 @@ public sealed class AppDbContext : ReusableAuthDbContext<AppUser>
 
 ## Adding your own data (alerts, likes, anything)
 
-The library stops at authentication. Anything your app needs *about* a user —
-alerts, likes, preferences, an audit trail — is yours to model, and Microsoft's
+The library stops at authentication. Anything your app needs *about* a user
+(alerts, likes, preferences, an audit trail) is yours to model, and Microsoft's
 [documented way](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/customize-identity-model)
 of doing it works unchanged here: put simple fields on your user type, and
 everything list-shaped in its own table with a `UserId` foreign key.
@@ -575,18 +575,20 @@ builder.Services.AddReusableAuth<AppUser>();
 
 ### Lists go in their own table
 
-There is no standard .NET package for alerts or likes — ABP has no notification
-module (only toast popups), and Orchard Core's is a CMS channel-preference system.
-But there *is* a standard shape, arrived at independently by
+You won't find a ready-made .NET package for alerts or likes. ABP has no
+notification module (just toast popups), and Orchard Core's is really a
+channel-preference system for a CMS. So you'll be modelling these yourself, but
+you don't have to design them from scratch. We've used the standard shape in the
+examples below: the one that
 [ASP.NET Boilerplate's notification system](https://aspnetboilerplate.com/Pages/Documents/Notification-System),
 [Orchard Core](https://docs.orchardcore.net/en/latest/reference/modules/Notifications/)
-and [ABP's CMS Kit reactions](https://abp.io/docs/en/abp/latest/Modules/Cms-Kit/Reactions).
-Worth copying rather than reinventing.
+and [ABP's CMS Kit reactions](https://abp.io/docs/en/abp/latest/Modules/Cms-Kit/Reactions)
+each arrived at independently, so it's well worth copying.
 
 **Alerts: split the event from the delivery.** One `Notification` row for the thing
 that happened, one `UserNotification` row per recipient carrying *that person's*
-read state. The obvious single-table shortcut — one row with a nullable `UserId`,
-blank meaning "everyone" — falls over the moment two people need different read
+read state. The obvious single-table shortcut (one row with a nullable `UserId`,
+blank meaning "everyone") falls over the moment two people need different read
 state for the same alert.
 
 ```csharp
@@ -608,7 +610,7 @@ public sealed class UserNotification             // the delivery: one row per re
 ```
 
 A global alert is then the same `Notification` fanned out to a `UserNotification`
-per user — "fan-out-on-write". That's the right default: recipient counts are
+per user, known as "fan-out-on-write". That's the right default: recipient counts are
 small, and it's what makes per-person read state possible at all.
 
 **Likes: a join table with a unique constraint.**
@@ -624,7 +626,7 @@ public sealed class Like
 ```
 
 The unique index is doing two jobs: one like per person per thing, and free
-idempotency — a double-submitted like violates the constraint, which you catch and
+idempotency, because a double-submitted like violates the constraint, which you catch and
 treat as a no-op rather than double-counting. Keep a denormalised `LikeCount` on the
 parent once `COUNT(*)` stops being cheap.
 
@@ -651,14 +653,14 @@ public sealed class AppDbContext : ReusableAuthDbContext<AppUser>
 ```
 
 > Forgetting `base.OnModelCreating(modelBuilder)` silently drops the entire Identity
-> schema — no error, just no auth tables in your next migration.
+> schema. No error, just no auth tables in your next migration.
 
 ```bash
 dotnet ef migrations add AddAlertsAndLikes
 dotnet ef database update
 ```
 
-Then write whatever API reads best for you — it's your domain, so nothing here
+Then write whatever API reads best for you. It's your domain, so nothing here
 constrains it:
 
 ```csharp
@@ -682,7 +684,7 @@ public sealed class AlertService(AppDbContext db, IAuthService auth)
 }
 ```
 
-Turning a feature off is then a plain property on your own user — no library flag
+Turning a feature off is then a plain property on your own user, with no library flag
 needed, and no schema you don't want:
 
 ```csharp
@@ -695,12 +697,12 @@ if (user.AlertsEnabled)
 **If you want them live**, persist first and push second: write the rows, then
 signal over [SignalR](https://learn.microsoft.com/en-us/aspnet/core/signalr/introduction)
 with `Clients.User(userId)`, which reaches every tab that person has open. SignalR is
-transport, not storage — a disconnected client misses the push, so the database write
+transport, not storage. A disconnected client misses the push, so the database write
 is what makes the alert real. Microsoft's
 [social-style notifications walkthrough](https://learn.microsoft.com/en-us/archive/msdn-magazine/2018/august/cutting-edge-social-style-notifications-with-asp-net-core-signalr)
 covers the shape. If the alert has to survive a crash between the business write and
 the publish, that's the
-[transactional outbox](https://microservices.io/patterns/data/transactional-outbox.html) —
+[transactional outbox](https://microservices.io/patterns/data/transactional-outbox.html),
 the same pattern
 [Microsoft's own microservices guidance](https://learn.microsoft.com/en-us/dotnet/architecture/microservices/multi-container-microservice-net-applications/integration-event-based-microservice-communications)
 recommends.
@@ -708,19 +710,19 @@ recommends.
 ### Why this isn't in the library
 
 Identity has no notion of alerts or likes, and neither does this library, on
-purpose. They are your domain, not authentication's — a package that shipped them
+purpose. They are your domain, not authentication's, and a package that shipped them
 would push a schema onto every consumer that wanted none of it, and would make an
 auth library carry code that has nothing to do with auth. A flag would not help:
 `AlertsEnabled = false` still ships the tables, the types and the migration.
 
 Nor is there a package to defer to. The .NET ecosystem has no dominant library for
-either — ABP's own support forum tells people to build notifications themselves, and
+either. ABP's own support forum tells people to build notifications themselves, and
 likes are hand-rolled everywhere. What exists is the *pattern* above, which is why it
 is documented here rather than implemented here. Microsoft's guidance for
 app-specific user data says the same thing: subclass, add your own tables.
 
 > **Don't put this kind of data in claims.** Claims are serialised into the auth
-> cookie and re-sent on *every* request. A growing list — every alert, every like —
+> cookie and re-sent on *every* request. A growing list (every alert, every like)
 > inflates that cookie until it is chunked across multiple `Set-Cookie` headers
 > (`ChunkingCookieManager` splits at ~4050 characters) and eventually until the
 > browser rejects it outright with `400 Bad Request - Request Header Or Cookie Too
@@ -730,7 +732,7 @@ app-specific user data says the same thing: subclass, add your own tables.
 ## Local development and the `__Host-` cookie prefix
 
 Cookies default to the `__Host-` prefix, which asks the browser itself to enforce
-that the cookie is `Secure`, scoped to `/`, and carries no `Domain` — so a
+that the cookie is `Secure`, scoped to `/`, and carries no `Domain`, so a
 compromised sibling subdomain cannot overwrite your session. Browsers enforce that
 prefix **inconsistently over plain `http://localhost`**.
 
@@ -769,7 +771,7 @@ builder.Services.AddReusableAuth(options =>
 | `RoleManager` and role claims in the cookie | Microsoft |
 | TOTP two-factor, authenticator keys, recovery codes | Microsoft |
 | The `otpauth://` setup URI and key formatting | Microsoft's scaffolded Identity UI (MIT) |
-| Background email queue | Microsoft's docs sample (MIT — see [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt)) |
+| Background email queue | Microsoft's docs sample (MIT; see [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt)) |
 | Options, secure defaults, startup validation | Ours |
 | Non-enumeration behaviour on top of Identity | Ours |
 | Startup guard against a fail-open store | Ours |
@@ -793,5 +795,5 @@ dotnet format --verify-no-changes
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Third-party notices in
+MIT. See [LICENSE](LICENSE) for the terms, and third-party notices in
 [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).

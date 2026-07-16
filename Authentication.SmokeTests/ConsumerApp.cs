@@ -21,7 +21,7 @@ namespace Authentication.SmokeTests;
 /// <remarks>
 /// This is the only place the library is used the way a consumer uses it: over HTTP, with
 /// the cookie a browser would actually hold and send back. Every other test calls the
-/// services directly, which cannot tell you whether the cookie works — whether it is
+/// services directly, which cannot tell you whether the cookie works: whether it is
 /// issued, whether it comes back, whether it stops working when it should.
 /// </remarks>
 internal sealed class ConsumerApp : IAsyncDisposable
@@ -90,7 +90,7 @@ internal sealed class ConsumerApp : IAsyncDisposable
     }
 
     /// <summary>
-    /// Routes of the host's own devising — the library ships none, which is the point.
+    /// Routes of the host's own devising. The library ships none, which is the point.
     /// </summary>
     private static void MapEndpoints(WebApplication app)
     {
@@ -153,7 +153,7 @@ internal sealed class ConsumerApp : IAsyncDisposable
     }
 
     /// <summary>
-    /// The cookies the client is holding — the test's window onto what the browser has.
+    /// The cookies the client is holding: the test's window onto what the browser has.
     /// </summary>
     public CookieContainer Cookies { get; } = new();
 

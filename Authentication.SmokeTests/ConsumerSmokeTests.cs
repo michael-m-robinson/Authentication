@@ -12,7 +12,7 @@ namespace Authentication.SmokeTests;
 /// <remarks>
 /// The unit tests call services directly and cannot see the cookie at all. These can: they
 /// are the only evidence that what the library issues is actually accepted on the next
-/// request, and — the part that matters — that it stops being accepted when it should.
+/// request, and (the part that matters) that it stops being accepted when it should.
 /// </remarks>
 public sealed class ConsumerSmokeTests : IAsyncLifetime
 {

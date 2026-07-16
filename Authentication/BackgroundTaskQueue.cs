@@ -29,7 +29,7 @@ internal interface IBackgroundTaskQueue
     /// </summary>
     /// <remarks>
     /// Completes once the item is queued. When the queue is full this waits for room
-    /// rather than discarding the item — see <see cref="BackgroundTaskQueue"/>.
+    /// rather than discarding the item. See <see cref="BackgroundTaskQueue"/>.
     /// </remarks>
     ValueTask QueueBackgroundWorkItemAsync(Func<CancellationToken, ValueTask> workItem);
 

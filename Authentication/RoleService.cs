@@ -177,7 +177,7 @@ internal sealed class RoleService<TUser> : IRoleService
     /// </summary>
     /// <remarks>
     /// The role lookup is not a courtesy. <c>UserManager.AddToRoleAsync</c> against a role
-    /// that does not exist does not return a failed <see cref="IdentityResult"/> — the EF
+    /// that does not exist does not return a failed <see cref="IdentityResult"/>. The EF
     /// store throws a raw <see cref="InvalidOperationException"/> out of it, which would
     /// surface as a 500. Checking first turns a typo'd role name into an ordinary handled
     /// result, as <c>rules/security.md</c> requires.
@@ -211,7 +211,7 @@ internal sealed class RoleService<TUser> : IRoleService
     /// </summary>
     /// <remarks>
     /// Identity refreshes the security stamp when a password changes but not when roles
-    /// do, so without this the user keeps whatever roles their cookie was minted with —
+    /// do, so without this the user keeps whatever roles their cookie was minted with,
     /// which on a removal means keeping access that was just revoked. Refreshing the stamp
     /// makes every open session for that user rebuild its claims within
     /// <see cref="ReusableAuthOptions.SecurityStampValidationInterval"/>.

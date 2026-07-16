@@ -12,7 +12,7 @@ namespace Authentication;
 /// This guard exists because the underlying failure is silent. ASP.NET Core Identity
 /// gates its stamp check on <c>UserManager.SupportsUserSecurityStamp</c>, which is just
 /// <c>Store is IUserSecurityStampStore&lt;TUser&gt;</c>. When a store does not implement
-/// that interface, <c>SignInManager.ValidateSecurityStampAsync</c> does not throw — it
+/// that interface, <c>SignInManager.ValidateSecurityStampAsync</c> does not throw. It
 /// returns <see langword="true"/> unconditionally. Session invalidation would then be a
 /// no-op: a password reset or privilege change would leave every existing cookie working,
 /// with nothing in the logs to say so.

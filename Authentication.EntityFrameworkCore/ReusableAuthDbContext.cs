@@ -19,7 +19,7 @@ namespace Authentication.EntityFrameworkCore;
 /// <para>
 /// Creates: <c>AspNetUsers</c>, <c>AspNetUserClaims</c>, <c>AspNetUserLogins</c>,
 /// <c>AspNetUserTokens</c>, <c>AspNetRoles</c>, <c>AspNetUserRoles</c>,
-/// <c>AspNetRoleClaims</c>. Migrations are the host's — see the README.
+/// <c>AspNetRoleClaims</c>. Migrations are the host's. See the README.
 /// </para>
 /// <para>
 /// Deriving from this is optional; any <c>DbContext</c> descended from

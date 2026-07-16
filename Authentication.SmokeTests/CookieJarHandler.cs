@@ -7,12 +7,12 @@ namespace Authentication.SmokeTests;
 /// </summary>
 /// <remarks>
 /// TestServer's handler has no cookie container of its own, so without this every request
-/// would arrive anonymous and the session would never be exercised at all — the tests would
+/// would arrive anonymous and the session would never be exercised at all, and the tests would
 /// pass or fail for reasons having nothing to do with the cookie.
 /// <para>
 /// Deliberately a real <see cref="CookieContainer"/> rather than "remember the last
 /// Set-Cookie header": it applies the actual rules for path, domain and expiry, so a cookie
-/// the library deletes by expiring it in the past really does stop being sent — which is
+/// the library deletes by expiring it in the past really does stop being sent, which is
 /// exactly what sign-out does, and what these tests need to observe.
 /// </para>
 /// </remarks>

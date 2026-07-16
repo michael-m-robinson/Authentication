@@ -20,9 +20,9 @@ email token lifespan" sample at:
 ASP.NET Core (dotnet/aspnetcore)
 https://github.com/dotnet/aspnetcore
 
-The two-factor authenticator setup in Authentication/AccountService.cs — the
+The two-factor authenticator setup in Authentication/AccountService.cs (the
 otpauth:// URI format, the shared-key formatting, and the verify-then-enable
-order — is adapted from the scaffolded Identity UI at:
+order) is adapted from the scaffolded Identity UI at:
   src/Identity/UI/src/Areas/Identity/Pages/V4/Account/Manage/EnableAuthenticator.cshtml.cs
 
 That repository is licensed under the MIT License, Copyright (c) .NET Foundation

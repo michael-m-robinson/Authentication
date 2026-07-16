@@ -8,7 +8,7 @@ namespace Authentication.SmokeTests;
 /// </summary>
 /// <remarks>
 /// A real host would build a link and post it to an SMTP provider. This keeps the pieces so
-/// a test can follow the link the user would have clicked — which is the only way to drive
+/// a test can follow the link the user would have clicked, which is the only way to drive
 /// confirmation and reset end to end rather than reaching around them.
 /// </remarks>
 internal sealed class CapturedEmails : IAuthEmailSender

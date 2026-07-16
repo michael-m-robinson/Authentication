@@ -9,7 +9,7 @@ namespace Authentication.Tests.Fakes;
 /// <remarks>
 /// Required, not optional. Turning roles on swaps Identity's claims factory for the
 /// role-aware one, which depends on <see cref="RoleManager{TRole}"/>, which will not
-/// resolve without a role store — so a host with no role store cannot build its container
+/// resolve without a role store, so a host with no role store cannot build its container
 /// at all. Implements <see cref="IQueryableRoleStore{TRole}"/> too, since
 /// <c>RoleManager.Roles</c> throws <see cref="NotSupportedException"/> without it.
 /// </remarks>

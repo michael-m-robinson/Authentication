@@ -31,8 +31,8 @@ public sealed class AuthResult
     /// <remarks>
     /// Everything here is safe to show the caller: password-policy messages describe the
     /// password just submitted, and role-operation messages describe a request made by
-    /// your own code about an id it already holds. Identity's account-disclosing errors —
-    /// <c>DuplicateUserName</c> and <c>DuplicateEmail</c> above all — never appear here,
+    /// your own code about an id it already holds. Identity's account-disclosing errors,
+    /// <c>DuplicateUserName</c> and <c>DuplicateEmail</c> above all, never appear here,
     /// and neither does the reason behind an <see cref="AuthStatus.Failed"/>.
     /// </remarks>
     public IReadOnlyList<string> Errors { get; }
