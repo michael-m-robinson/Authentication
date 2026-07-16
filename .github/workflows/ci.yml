@@ -5,8 +5,13 @@
 # teaches people that red builds are noise, which costs more than the scan is worth. Each
 # one switches itself on the moment its secret is set.
 #
-# Action versions are pinned to a major and were checked against the current releases:
-# the once-standard semgrep-action and sonarcloud-github-action are both archived now.
+# Every action is pinned to a full commit SHA, not a tag. A tag is mutable - the owner can
+# repoint @v7 at anything - which is how the tj-actions/changed-files and trivy-action
+# compromises reached everyone downstream. The trailing comment records the version so the
+# SHA is legible; re-resolve it when bumping.
+#
+# The versions themselves were checked against current releases rather than assumed: the
+# once-standard semgrep-action and sonarcloud-github-action are both archived now.
 
 name: CI
 
@@ -29,9 +34,9 @@ jobs:
     name: Build, test, audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -74,7 +79,7 @@ jobs:
       - name: Pack
         run: dotnet pack -c Release --no-build -o artifacts
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: packages
           path: artifacts/*
@@ -86,7 +91,7 @@ jobs:
     container:
       image: semgrep/semgrep
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       # semgrep/semgrep-action and returntocorp/semgrep-action are both archived; the
       # current way is this image plus `semgrep ci`.
@@ -115,13 +120,13 @@ jobs:
         if: env.SONAR_TOKEN == ''
         run: echo "::notice::SONAR_TOKEN is not set; skipping Sonar analysis."
 
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         if: env.SONAR_TOKEN != ''
         with:
           # Sonar needs full history to attribute issues to the commit that introduced them.
           fetch-depth: 0
 
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
         if: env.SONAR_TOKEN != ''
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
@@ -175,11 +180,20 @@ jobs:
       #   yellow non-blocking     bang scan error
       - name: Summarise
         id: summary
+        # Through env, not interpolated into the script. These particular values are a fixed
+        # set the runner controls, so nothing could be injected through them today - but the
+        # habit is what matters: a `run:` block should never have expression output pasted
+        # into it, because the next person to add one will not check where the value came
+        # from.
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          SEMGREP_RESULT: ${{ needs.semgrep.result }}
+          SONAR_RESULT: ${{ needs.sonar.result }}
         run: |
           set -euo pipefail
-          build='${{ needs.build.result }}'
-          semgrep='${{ needs.semgrep.result }}'
-          sonar='${{ needs.sonar.result }}'
+          build="$BUILD_RESULT"
+          semgrep="$SEMGREP_RESULT"
+          sonar="$SONAR_RESULT"
 
           if [ "$build" = 'failure' ] || [ "$semgrep" = 'failure' ]; then
             # Build, tests, the dependency audit and Semgrep all block.
@@ -206,7 +220,7 @@ jobs:
 
       - name: Send summary
         if: env.FINDINGS_EMAIL != '' && env.SMTP_USERNAME != '' && env.SMTP_PASSWORD != ''
-        uses: dawidd6/action-send-mail@v18
+        uses: dawidd6/action-send-mail@94de994a9f6fffee200243214e17002e2920bb59 # v18
         with:
           server_address: ${{ secrets.SMTP_SERVER || 'smtp.gmail.com' }}
           server_port: ${{ secrets.SMTP_PORT || 465 }}
