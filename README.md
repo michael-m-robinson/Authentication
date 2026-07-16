@@ -585,8 +585,8 @@ dotnet ef migrations add AddLikesAndAlerts
 dotnet ef database update
 ```
 
-The tables go on *your* context, next to the auth tables, so a like and the alert it
-raises are written in one transaction.
+The tables go on *your* context, next to the auth tables. Posting a like raises the
+alert that goes with it, and both are written in one transaction.
 
 Then inject `ILikeService` and `IAlertService`:
 
