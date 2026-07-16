@@ -25,14 +25,15 @@ public sealed class AuthResult
     public AuthStatus Status { get; }
 
     /// <summary>
-    /// Human-readable messages describing why a password was rejected. Empty for every
-    /// status other than <see cref="AuthStatus.PasswordRejected"/>.
+    /// Human-readable messages explaining a <see cref="AuthStatus.PasswordRejected"/> or
+    /// <see cref="AuthStatus.Rejected"/> result. Empty for every other status.
     /// </summary>
     /// <remarks>
-    /// Only ever populated with password-policy messages, which describe the submitted
-    /// password. Identity's other errors — <c>DuplicateUserName</c> and
-    /// <c>DuplicateEmail</c> above all — are never surfaced here, because they confirm
-    /// that an account exists.
+    /// Everything here is safe to show the caller: password-policy messages describe the
+    /// password just submitted, and role-operation messages describe a request made by
+    /// your own code about an id it already holds. Identity's account-disclosing errors —
+    /// <c>DuplicateUserName</c> and <c>DuplicateEmail</c> above all — never appear here,
+    /// and neither does the reason behind an <see cref="AuthStatus.Failed"/>.
     /// </remarks>
     public IReadOnlyList<string> Errors { get; }
 
@@ -69,5 +70,29 @@ public sealed class AuthResult
     {
         ArgumentNullException.ThrowIfNull(errors);
         return new AuthResult(AuthStatus.PasswordRejected, [.. errors]);
+    }
+
+    /// <summary>
+    /// An administrative operation was refused, with the reason given.
+    /// </summary>
+    /// <param name="errors">The reasons to relay to the caller.</param>
+    /// <returns>A rejected result carrying <paramref name="errors"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="errors"/> is null.</exception>
+    public static AuthResult Rejected(IEnumerable<string> errors)
+    {
+        ArgumentNullException.ThrowIfNull(errors);
+        return new AuthResult(AuthStatus.Rejected, [.. errors]);
+    }
+
+    /// <summary>
+    /// An administrative operation was refused, with a single reason.
+    /// </summary>
+    /// <param name="error">The reason to relay to the caller.</param>
+    /// <returns>A rejected result carrying <paramref name="error"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="error"/> is null.</exception>
+    public static AuthResult Rejected(string error)
+    {
+        ArgumentNullException.ThrowIfNull(error);
+        return new AuthResult(AuthStatus.Rejected, [error]);
     }
 }

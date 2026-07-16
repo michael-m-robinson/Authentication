@@ -17,6 +17,7 @@ internal sealed class ReusableAuthOptionsValidator : IValidateOptions<ReusableAu
 
         List<string> failures = [];
         ValidateCookies(options, failures);
+        ValidateChallengePaths(options, failures);
         ValidateSession(options, failures);
         ValidateTokenLifetimes(options, failures);
         ValidatePasswordPolicy(options, failures);
@@ -68,6 +69,30 @@ internal sealed class ReusableAuthOptionsValidator : IValidateOptions<ReusableAu
                 $"{propertyName} uses the '{ReusableAuthOptions.HostCookiePrefix}' prefix, which browsers " +
                 $"only honour on a cookie with no Domain, but {nameof(ReusableAuthOptions.CookieDomain)} is " +
                 "set. Either clear the domain or drop the prefix.");
+        }
+    }
+
+    private static void ValidateChallengePaths(ReusableAuthOptions options, List<string> failures)
+    {
+        // A relative path silently never matches, so the redirect lands nowhere useful and
+        // looks like a routing bug rather than a config one.
+        RequireRootedPath(options.LoginPath, nameof(options.LoginPath), failures);
+        RequireRootedPath(options.AccessDeniedPath, nameof(options.AccessDeniedPath), failures);
+    }
+
+    private static void RequireRootedPath(string? path, string propertyName, List<string> failures)
+    {
+        // Null is meaningful: answer with a status code instead of redirecting.
+        if (path is null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(path) || !path.StartsWith('/'))
+        {
+            failures.Add(
+                $"{propertyName} must be an absolute path beginning with '/', or null to answer " +
+                "with a status code instead of redirecting.");
         }
     }
 

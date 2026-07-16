@@ -28,6 +28,9 @@
        tested directly rather than through a public seam. -->
   <ItemGroup>
     <InternalsVisibleTo Include="Authentication.Tests" />
+    <!-- The EF package's tests assert that Microsoft's store satisfies the startup
+         guard, which is the entire premise of wiring theirs instead of writing one. -->
+    <InternalsVisibleTo Include="Authentication.EntityFrameworkCore.Tests" />
   </ItemGroup>
 
 </Project>

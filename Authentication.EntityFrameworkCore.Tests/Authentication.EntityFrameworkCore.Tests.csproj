@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Framework, analyzers and warnings-as-errors come from
+       ../Directory.Build.props. Only test-specific settings live here. -->
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <!-- Tests are not a public API surface: no XML docs to generate, and
+         requiring them would fail the build under TreatWarningsAsErrors. -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <!-- Sqlite in-memory rather than the InMemory provider: InMemory enforces no
+       relational constraints, so it would happily accept a schema a real database
+       would reject, and these tests are about whether the store actually works. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.10" />
+
+    <!-- Transitive-pin to clear CVE-2025-6965 / GHSA-2m69-gcr7-jv3q, a memory-corruption
+         flaw in SQLite itself (fixed upstream in 3.50.2) that reaches us through the
+         native build SQLitePCLRaw bundles. EF Core Sqlite 10.0.10 still floors at the
+         vulnerable 2.1.11 and Microsoft has not shipped a fix (dotnet/efcore#38257), so
+         raising the floor here is the only way to satisfy the fail-on-vulnerable rule in
+         rules/ci-scanning.md.
+
+         2.1.12, not 3.x: it is the maintainer's minimal-diff backport onto the same 2.1.x
+         line EF Core already resolves, published at Microsoft's request. The 3.x line
+         restructures the package graph (lib.e_sqlite3 becomes SourceGear.sqlite3) and
+         Microsoft has not confirmed EF Core 10 works against it.
+
+         Test-only, so this never reaches the shipped package, and the flaw needs
+         attacker-shaped aggregate SQL that no test here executes. Pinned regardless: the
+         rule says any known-vulnerable dependency fails the build, and arguing a CVE is
+         unreachable is how vulnerable dependencies stay put. Remove once EF Core ships a
+         patched floor. -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.12" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Authentication/Authentication.csproj" />
+    <ProjectReference Include="../Authentication.EntityFrameworkCore/Authentication.EntityFrameworkCore.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+</Project>

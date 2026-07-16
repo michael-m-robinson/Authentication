@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Shared settings (framework, analyzers, license, version) come from
+       ../Directory.Build.props. -->
+
+  <PropertyGroup>
+    <PackageId>Authentication.EntityFrameworkCore</PackageId>
+    <Description>Entity Framework Core storage for the Authentication library. Wires ASP.NET Core Identity's own EF Core store, so a host that wants a ready-made store does not have to write one. Optional: the core Authentication package stays storage-agnostic.</Description>
+    <PackageTags>authentication;identity;aspnetcore;entityframeworkcore;efcore;security</PackageTags>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Authentication/Authentication.csproj" />
+  </ItemGroup>
+
+  <!-- Microsoft's Identity EF Core store. Unlike Identity itself this is NOT part of the
+       shared framework, so it takes an explicit PackageReference. Pinned to an exact
+       version and first-party, per rules/security.md - the entire point of this package
+       is to use Microsoft's security-reviewed store rather than hand-roll persistence for
+       credentials. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.10" />
+  </ItemGroup>
+
+</Project>

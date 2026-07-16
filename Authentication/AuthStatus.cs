@@ -58,4 +58,17 @@ public enum AuthStatus
     /// Accompanied by the policy messages in <see cref="AuthResult.Errors"/>.
     /// </remarks>
     PasswordRejected = 3,
+
+    /// <summary>
+    /// An administrative operation was refused, and <see cref="AuthResult.Errors"/> says
+    /// why.
+    /// </summary>
+    /// <remarks>
+    /// Used by role management: no such role, no such user, already a member, not a
+    /// member. These are explained rather than hidden because they are not disclosures —
+    /// role operations are called by your own trusted code with an id it already holds,
+    /// not by an anonymous visitor probing for accounts. Hiding the reason there would
+    /// buy no security and make every failure undebuggable.
+    /// </remarks>
+    Rejected = 4,
 }

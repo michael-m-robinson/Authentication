@@ -25,6 +25,7 @@ public class TokenLifetimeTests
         services.AddDataProtection();
         services.AddReusableAuth(configure);
         services.AddSingleton<IUserStore<ReusableAuthUser>, InMemoryUserStore>();
+        services.AddSingleton<IRoleStore<IdentityRole>, InMemoryRoleStore>();
         services.AddSingleton<IAuthEmailSender, RecordingEmailSender>();
         return services.BuildServiceProvider();
     }

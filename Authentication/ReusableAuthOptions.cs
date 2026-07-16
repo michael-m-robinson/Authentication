@@ -67,6 +67,32 @@ public sealed class ReusableAuthOptions
     public bool SlidingExpiration { get; set; } = true;
 
     /// <summary>
+    /// Where to send an unauthenticated visitor who asks for something protected.
+    /// Null (the default) answers <c>401 Unauthorized</c> instead of redirecting.
+    /// </summary>
+    /// <remarks>
+    /// Set this in an MVC, Razor Pages or Blazor app — a challenge there is expected to
+    /// land on a login page, and a bare 401 looks like a broken site. Leave it null in an
+    /// API, where a redirect to HTML is worse than useless to a caller expecting JSON.
+    /// <para>
+    /// The library has no page of its own to offer, which is why the default is a status
+    /// code rather than a guess at a path that probably would not exist.
+    /// </para>
+    /// </remarks>
+    public string? LoginPath { get; set; }
+
+    /// <summary>
+    /// Where to send a signed-in visitor who lacks permission. Null (the default) answers
+    /// <c>403 Forbidden</c> instead of redirecting.
+    /// </summary>
+    /// <remarks>
+    /// Same reasoning as <see cref="LoginPath"/>. Note this is for a visitor who <em>is</em>
+    /// authenticated and still not allowed, so sending them to a login page is the wrong
+    /// answer — give them a page that says so.
+    /// </remarks>
+    public string? AccessDeniedPath { get; set; }
+
+    /// <summary>
     /// How often an active session is re-checked against the user's security stamp.
     /// Defaults to 1 minute.
     /// </summary>

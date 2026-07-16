@@ -29,12 +29,21 @@ through options, and every integration point is an interface the host can replac
 - `Authentication` (core) — options, DI extensions, cookie + CSRF configuration,
   auth services, and the abstraction interfaces. Depends only on Identity/cookie
   abstractions.
-- `Authentication.EntityFrameworkCore` (v1, optional to reference) — a ready-made
-  EF Core Identity store for hosts that want one instead of writing their own.
-  Kept separate so the core stays storage-agnostic.
-- `Authentication.Endpoints` (optional) — `app.MapAuthEndpoints()` minimal-API
-  handlers (register / login / logout / me / confirm / reset). Hosts that already
-  have controllers can skip it and call the services directly.
+- `Authentication.EntityFrameworkCore` (v1, optional to reference) — wires
+  Identity's own EF Core store, plus a correctly-based `DbContext` and a fail-fast
+  startup check. It contains no store logic of ours; Microsoft's is already
+  security-reviewed and satisfies the stamp guard. Kept separate so the core stays
+  storage-agnostic and takes no EF dependency.
+**The library exposes no HTTP endpoints.** An earlier draft planned an
+`Authentication.Endpoints` package with `MapAuthEndpoints()`; that is dropped.
+Shipping endpoints would both hand hosts an HTTP surface they did not ask for and
+assume minimal APIs, which is the opposite of dropping into an existing MVC or
+Blazor app. The library is methods you call — the host owns its own routes, pages,
+components and HTTP shape.
+
+That places the burden on the methods: each one is expected to be *complete*, so a
+host calling `AddToGroupAsync` gets the persistence, the claim refresh and the
+session rotation without knowing those are separate concerns.
 
 ## Public surface (initial)
 
@@ -57,8 +66,15 @@ through options, and every integration point is an interface the host can replac
   change. Internal by default; public only if a host must trigger rotation itself.
 - `IAuthEmailSender` — host implements delivery of confirmation/reset links; the
   library only generates the tokens, it never sends mail itself.
-- `MapAuthEndpoints(this IEndpointRouteBuilder)` (Endpoints package) — opt-in
-  minimal-API surface.
+- Group membership over Identity's own `RoleManager` — create/delete a group, add
+  and remove members, list them. Fully featured: role changes do not refresh the
+  security stamp in Identity, so these methods do it, or a revoked member keeps
+  their access until the cookie expires.
+- Per-user settings — change email (with re-confirmation), phone, two-factor,
+  claims. Each does the whole job, rotating the session where the change is a
+  privilege change.
+- `LoginPath` / `AccessDeniedPath` options — set them and the cookie redirects, as
+  MVC and Blazor expect; leave them unset and it answers 401/403, as an API wants.
 
 ## Security invariants (do not regress)
 
@@ -123,15 +139,81 @@ binding source.)
    test PLAN.md asks for — a pre-change cookie ceasing to authenticate — needs a
    real request pipeline, so it belongs with the consumer smoke test in
    milestone 7.
-4. **EF Core store package** — `Authentication.EntityFrameworkCore` with the
-   default Identity store + migrations guidance. In v1 scope; separate package,
-   optional for the host to reference.
-5. **Endpoints package** — optional `MapAuthEndpoints` minimal-API surface.
-6. **CI + packaging** — Actions: build (warnings-as-errors) + test + Semgrep +
+4. **EF Core store package** — *done, and smaller than planned.* This milestone
+   said "a ready-made EF Core Identity store". We do not write one: ASP.NET Core
+   Identity already ships `UserOnlyStore`, which implements every store interface
+   this library needs — `IUserSecurityStampStore` included, so it satisfies the
+   startup guard — and Microsoft security-reviews it every release. Writing our own
+   would mean re-implementing concurrency-stamp handling and personal-data
+   protection for credential storage: the store equivalent of hand-rolling a
+   password hasher, which `rules/code-quality.md` forbids.
+   So `Authentication.EntityFrameworkCore` is a thin wrapper holding only:
+   - `ReusableAuthDbContext<TUser>` over `IdentityUserContext<TUser, string>`, not
+     `IdentityDbContext` — which would add `AspNetRoles`, `AspNetUserRoles` and
+     `AspNetRoleClaims` plus a required FK that this library never uses.
+   - `AddReusableAuthEntityFrameworkStores<TUser, TContext>()`, which calls
+     Microsoft's `AddEntityFrameworkStores` through a locally-built
+     `IdentityBuilder` (its constructor is public), keeping `IdentityBuilder` out
+     of our API.
+   - A startup check that `TContext` really is an `IdentityUserContext` for
+     `TUser`. Microsoft's accepts any `DbContext` and silently falls back to a
+     POCO-bound store that fails later inside EF; fail-fast matches
+     `rules/security.md`.
+   8 tests over Sqlite (not the InMemory provider, which enforces no relational
+   constraints).
+   Note: pinned `SQLitePCLRaw.bundle_e_sqlite3` 2.1.12 in the EF test project.
+   EF Core Sqlite 10.0.10 still floors at 2.1.11, which carries CVE-2025-6965
+   (memory corruption in SQLite itself). Test-only and not reachable by our tests,
+   but `rules/ci-scanning.md` fails on any known-vulnerable dependency. Remove the
+   pin once EF Core ships a patched floor (dotnet/efcore#38257).
+   Migrations remain the host's; the README covers it.
+5. **Host-agnostic challenge** — `LoginPath`/`AccessDeniedPath` options. Milestone 2
+   hard-coded 401/403 on the reasoning that "a library has no login page to
+   redirect to". True of an API, wrong for MVC and Blazor, where a challenge is
+   expected to redirect — so an MVC app cannot currently drop this in. Unset still
+   means 401/403.
+6. **Roles** — *done.* `IRoleService` over Identity's `RoleManager`: create, delete,
+   add a member, remove a member, and the lookups. Named "role", not "group", to
+   match `[Authorize(Roles = ...)]` and every Identity doc rather than layer a
+   synonym over them. 113 tests; the stamp-refresh assertions are mutation-tested
+   against both a fake and a real database.
+   Three things the research turned up, each of which would have shipped broken:
+   - **The EF context had to change base.** `AddEntityFrameworkStores` decides which
+     store to wire by looking for an `IdentityDbContext` ancestor. Milestone 4's
+     `IdentityUserContext` is its *base*, not that type, so the check failed and it
+     silently registered a store reaching for role entities the model had never
+     heard of — an EF error on the first role call, no compile error, no migration.
+     `ReusableAuthDbContext` now derives from `IdentityDbContext<TUser, IdentityRole,
+     string>`, restoring the three tables milestone 4 removed.
+   - **The role type has to be passed to `IdentityBuilder`.** With `RoleType` null,
+     Microsoft's wiring registers no role store at all, so `RoleManager` cannot
+     resolve and the host fails to build its container. A test caught this.
+   - **`AddToRoleAsync` against a missing role throws a raw
+     `InvalidOperationException`** out of the EF store rather than returning a failed
+     result — a 500 where `rules/security.md` wants a handled failure. `RoleService`
+     checks first.
+   Consequence worth knowing: roles are not optional. Turning them on swaps in the
+   role-aware claims factory, so every host must now supply an `IRoleStore` — free
+   with the EF package, real work for a custom store.
+   `AuthStatus.Rejected` was added for this: role failures *are* explained, because
+   they are administrative calls made by the host's own code about an id it already
+   holds, with no anonymous caller to disclose anything to.
+7. **Per-user settings** — change email (re-confirming the new address), phone,
+   two-factor, claims. Each rotates the session where the change is a privilege
+   change.
+8. **Runtime configuration** — change settings without a restart. Needs design
+   work: options are read through `IOptions<T>`, which is resolved once and cached,
+   and the cookie handler's options are cached per scheme — so a runtime change
+   would not reach either today. `ValidateOnStart` also only validates at boot, so
+   validation has to move to every change.
+9. **CI + packaging** — Actions: build (warnings-as-errors) + test + Semgrep +
    Sonar + vulnerable-package scan + emailed summary; `dotnet pack`/`push` on a
    tagged release (`rules/ci-scanning.md`, `rules/packaging.md`).
-7. **Consumer smoke test** — wire a throwaway minimal API to the package and drive
-   register -> login -> me -> logout to prove it works end to end.
+10. **Consumer smoke test** — drive register -> login -> me -> logout end to end
+    against a real host, and cover the rotation test milestone 3 could not: a
+    cookie issued before a privilege change must stop authenticating after it.
+    Worth doing against both an MVC app and a Blazor app, since "drops into any
+    project" is the claim being tested.
 
 ## Decisions (settled)
 

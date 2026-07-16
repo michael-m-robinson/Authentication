@@ -18,6 +18,7 @@ public class SecurityStampStoreGuardTests
         services.AddLogging();
         services.AddReusableAuth();
         services.AddSingleton<IUserStore<ReusableAuthUser>, TStore>();
+        services.AddSingleton<IRoleStore<IdentityRole>, InMemoryRoleStore>();
 
         ServiceProvider provider = services.BuildServiceProvider();
         return provider.CreateScope().ServiceProvider.GetRequiredService<UserManager<ReusableAuthUser>>();

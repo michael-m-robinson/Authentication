@@ -28,6 +28,7 @@ public sealed class AuthServiceTests : IDisposable
         services.AddDataProtection();
         services.AddReusableAuth();
         services.AddSingleton<IUserStore<ReusableAuthUser>, InMemoryUserStore>();
+        services.AddSingleton<IRoleStore<IdentityRole>, InMemoryRoleStore>();
         services.AddSingleton<IAuthEmailSender>(_emails);
 
         // Swap the real queue for one the test drains by hand, so the background work is

@@ -145,7 +145,13 @@ public static class ReusableAuthServiceCollectionExtensions
         // schemes and would fight the hardened one configured above. AddSignInManager
         // already brings ISecurityStampValidator and ITwoFactorSecurityStampValidator
         // with it, which is what the cookies' OnValidatePrincipal resolves.
+        // AddRoles brings Microsoft's RoleManager, and — importantly — swaps the claims
+        // factory for UserClaimsPrincipalFactory<TUser, TRole>, which is what puts role
+        // claims into the cookie. That is why [Authorize(Roles = "...")] works against our
+        // hardened cookie with nothing further from us. It does NOT register a role store;
+        // that comes from the host's store package.
         services.AddIdentityCore<TUser>()
+            .AddRoles<IdentityRole>()
             .AddDefaultTokenProviders()
             .AddTokenProvider<PasswordResetTokenProvider<TUser>>(
                 ReusableAuthOptions.PasswordResetTokenProviderName)
@@ -158,6 +164,7 @@ public static class ReusableAuthServiceCollectionExtensions
         // Scoped: it reads the current request's principal. The host still has to
         // supply IAuthEmailSender; the library mints tokens but never sends mail.
         services.TryAddScoped<IAuthService, AuthService<TUser>>();
+        services.TryAddScoped<IRoleService, RoleService<TUser>>();
 
         // Auth emails are sent off the request thread, so that asking for a password
         // reset takes the same time whether or not the address is registered. Singleton
@@ -189,11 +196,43 @@ public static class ReusableAuthServiceCollectionExtensions
         // so we have to wire it ourselves.
         cookie.Events.OnValidatePrincipal = SecurityStampValidator.ValidatePrincipalAsync;
 
-        // A library has no login page to redirect to, and inventing a path would be
-        // an app-specific assumption. Answer with the status code and let the host
-        // decide what to render.
-        cookie.Events.OnRedirectToLogin = RespondWith(StatusCodes.Status401Unauthorized);
-        cookie.Events.OnRedirectToAccessDenied = RespondWith(StatusCodes.Status403Forbidden);
+        ConfigureChallengeBehaviour(cookie, auth);
+    }
+
+    /// <summary>
+    /// Decides whether a challenge redirects to a page or answers with a status code.
+    /// </summary>
+    /// <remarks>
+    /// Both are correct, for different hosts: MVC, Razor Pages and Blazor expect a
+    /// challenge to land on a login page, while an API caller expecting JSON is not helped
+    /// by a 302 to HTML. The host says which by setting the paths or leaving them null.
+    /// <para>
+    /// Note the framework would otherwise fill in <c>/Account/Login</c> for us —
+    /// PostConfigureCookieAuthenticationOptions defaults LoginPath when it is unset — so a
+    /// host that set no path would silently redirect to a route that probably does not
+    /// exist. Overriding the event when no path is configured is what keeps that from
+    /// happening.
+    /// </para>
+    /// </remarks>
+    private static void ConfigureChallengeBehaviour(CookieAuthenticationOptions cookie, ReusableAuthOptions auth)
+    {
+        if (string.IsNullOrWhiteSpace(auth.LoginPath))
+        {
+            cookie.Events.OnRedirectToLogin = RespondWith(StatusCodes.Status401Unauthorized);
+        }
+        else
+        {
+            cookie.LoginPath = auth.LoginPath;
+        }
+
+        if (string.IsNullOrWhiteSpace(auth.AccessDeniedPath))
+        {
+            cookie.Events.OnRedirectToAccessDenied = RespondWith(StatusCodes.Status403Forbidden);
+        }
+        else
+        {
+            cookie.AccessDeniedPath = auth.AccessDeniedPath;
+        }
     }
 
     private static void ConfigureTwoFactorUserIdCookie(CookieAuthenticationOptions cookie, ReusableAuthOptions auth)

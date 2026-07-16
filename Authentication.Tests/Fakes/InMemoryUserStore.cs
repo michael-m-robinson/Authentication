@@ -17,9 +17,18 @@ internal sealed class InMemoryUserStore :
     IUserPasswordStore<ReusableAuthUser>,
     IUserEmailStore<ReusableAuthUser>,
     IUserSecurityStampStore<ReusableAuthUser>,
-    IUserLockoutStore<ReusableAuthUser>
+    IUserLockoutStore<ReusableAuthUser>,
+    IUserRoleStore<ReusableAuthUser>
 {
     private readonly ConcurrentDictionary<string, ReusableAuthUser> _users = new(StringComparer.Ordinal);
+
+    // userId -> role names, as Identity hands them to a store: NORMALISED (upper-invariant).
+    //
+    // Note this is where the fake stops being faithful. Identity's real EF store joins back
+    // to the roles table on read and returns each role's original casing; this one can only
+    // give back what it was handed, because it has no roles table to join to. Anything that
+    // depends on the casing that comes out has to be tested against the real store.
+    private readonly ConcurrentDictionary<string, HashSet<string>> _roles = new(StringComparer.Ordinal);
 
     public IReadOnlyCollection<ReusableAuthUser> Users => _users.Values.ToList();
 
@@ -154,6 +163,45 @@ internal sealed class InMemoryUserStore :
     {
         user.LockoutEnabled = enabled;
         return Task.CompletedTask;
+    }
+
+    public Task AddToRoleAsync(ReusableAuthUser user, string roleName, CancellationToken cancellationToken)
+    {
+        _roles.GetOrAdd(user.Id, _ => new HashSet<string>(StringComparer.Ordinal)).Add(roleName);
+        return Task.CompletedTask;
+    }
+
+    public Task RemoveFromRoleAsync(ReusableAuthUser user, string roleName, CancellationToken cancellationToken)
+    {
+        if (_roles.TryGetValue(user.Id, out HashSet<string>? roles))
+        {
+            roles.Remove(roleName);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task<IList<string>> GetRolesAsync(ReusableAuthUser user, CancellationToken cancellationToken)
+    {
+        IList<string> roles = _roles.TryGetValue(user.Id, out HashSet<string>? held)
+            ? [.. held]
+            : [];
+
+        return Task.FromResult(roles);
+    }
+
+    public Task<bool> IsInRoleAsync(ReusableAuthUser user, string roleName, CancellationToken cancellationToken)
+        => Task.FromResult(_roles.TryGetValue(user.Id, out HashSet<string>? held) && held.Contains(roleName));
+
+    public Task<IList<ReusableAuthUser>> GetUsersInRoleAsync(string roleName, CancellationToken cancellationToken)
+    {
+        IList<ReusableAuthUser> members = [.. _roles
+            .Where(pair => pair.Value.Contains(roleName))
+            .Select(pair => _users.GetValueOrDefault(pair.Key))
+            .Where(u => u is not null)
+            .Select(u => u!)];
+
+        return Task.FromResult(members);
     }
 
     public void Dispose()

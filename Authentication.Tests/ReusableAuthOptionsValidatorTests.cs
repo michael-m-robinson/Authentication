@@ -112,6 +112,7 @@ public class ReusableAuthOptionsValidatorTests
         services.AddLogging();
         services.AddReusableAuth(o => o.PasswordMinimumLength = 4);
         services.AddSingleton<IUserStore<ReusableAuthUser>, StampAwareUserStore>();
+        services.AddSingleton<IRoleStore<IdentityRole>, InMemoryRoleStore>();
 
         using ServiceProvider provider = services.BuildServiceProvider();
 

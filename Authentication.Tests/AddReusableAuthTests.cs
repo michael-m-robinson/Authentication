@@ -22,6 +22,7 @@ public class AddReusableAuthTests
         services.AddLogging();
         services.AddReusableAuth(configure);
         services.AddSingleton<IUserStore<ReusableAuthUser>, StampAwareUserStore>();
+        services.AddSingleton<IRoleStore<IdentityRole>, InMemoryRoleStore>();
         return services.BuildServiceProvider();
     }
 
