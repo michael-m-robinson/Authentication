@@ -256,11 +256,28 @@ binding source.)
 9. **CI + packaging** — Actions: build (warnings-as-errors) + test + Semgrep +
    Sonar + vulnerable-package scan + emailed summary; `dotnet pack`/`push` on a
    tagged release (`rules/ci-scanning.md`, `rules/packaging.md`).
-10. **Consumer smoke test** — drive register -> login -> me -> logout end to end
-    against a real host, and cover the rotation test milestone 3 could not: a
-    cookie issued before a privilege change must stop authenticating after it.
-    Worth doing against both an MVC app and a Blazor app, since "drops into any
-    project" is the claim being tested.
+10. **Consumer smoke test** — *done.* `Authentication.SmokeTests` stands up a real
+    ASP.NET Core pipeline in-process (TestHost), wired exactly as the README tells a
+    host to wire one, and drives it over HTTP with the cookie a browser would hold.
+    8 tests: register → confirm → login → me → logout; the cookie is `HttpOnly`,
+    `Secure`, `Path=/` *on the wire* rather than merely in an options object; sign-out
+    expires it rather than ignoring it; an unauthenticated request gets 401 and not a
+    redirect; and a wrong password is indistinguishable from an unknown account down
+    to the absent `Set-Cookie`.
+    **The rotation test the plan has wanted since milestone 3 now exists**, and it is
+    the one that matters: a client holds a cookie asserting `Admins`, the role is
+    revoked, and `/admin` must stop admitting it. Mutation-tested — remove the stamp
+    refresh from `RoleService` and the revoked administrator gets `200 OK` from
+    `/admin`, which is the actual vulnerability, demonstrated. Until this existed, the
+    library's central invariant rested on reading the framework source correctly.
+    Notes for anyone extending it: the client's base address must be `https`, because
+    the session cookie is `Secure` and cannot be weakened — over plain http the server
+    never sets it and every test fails for the wrong reason. And
+    `SecurityStampValidationInterval` is `Zero` here so revocation lands on the next
+    request; a test that waited the default minute would never be run.
+    Not done: an MVC app and a Blazor app. The claim "drops into any project" is
+    covered for the pipeline (the challenge-path tests cover the redirect behaviour
+    MVC needs), but no test stands up either framework for real.
 
 ## Decisions (settled)
 
