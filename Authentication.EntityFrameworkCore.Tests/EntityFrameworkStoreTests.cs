@@ -214,6 +214,88 @@ public sealed class EntityFrameworkStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task AFailedEmailChange_DoesNotReachTheDatabase()
+    {
+        // Asserted here rather than in the core suite because it is a persistence question,
+        // and the fake store cannot answer it: it hands back the very object Identity mutated
+        // before validation failed, so the change looks applied even though nothing was
+        // written. Only a real store and a fresh read settle it.
+        using ServiceProvider provider = Build();
+        IAuthEmailSender sender = provider.GetRequiredService<IAuthEmailSender>();
+
+        string userId;
+        string token;
+
+        using (IServiceScope scope = provider.CreateScope())
+        {
+            UserManager<ReusableAuthUser> users =
+                scope.ServiceProvider.GetRequiredService<UserManager<ReusableAuthUser>>();
+            IAccountService account = scope.ServiceProvider.GetRequiredService<IAccountService>();
+
+            ReusableAuthUser taken = new() { UserName = "taken@example.com", Email = "taken@example.com" };
+            ReusableAuthUser person = new() { UserName = "person@example.com", Email = "person@example.com" };
+            await users.CreateAsync(taken, "Correct-horse-9!");
+            await users.CreateAsync(person, "Correct-horse-9!");
+            userId = person.Id;
+
+            token = AuthTokens.Encode(await users.GenerateChangeEmailTokenAsync(person, "taken@example.com"));
+
+            AuthResult result = await account.ConfirmEmailChangeAsync(userId, "taken@example.com", token);
+
+            Assert.Equal(AuthStatus.Failed, result.Status);
+        }
+
+        // A brand-new scope, so nothing is served from the previous change tracker.
+        using (IServiceScope fresh = provider.CreateScope())
+        {
+            UserManager<ReusableAuthUser> users =
+                fresh.ServiceProvider.GetRequiredService<UserManager<ReusableAuthUser>>();
+
+            ReusableAuthUser reloaded = await users.FindByIdAsync(userId) ?? throw new InvalidOperationException();
+
+            Assert.Equal("person@example.com", await users.GetEmailAsync(reloaded));
+            Assert.Equal("person@example.com", await users.GetUserNameAsync(reloaded));
+        }
+    }
+
+    [Fact]
+    public async Task EmailChange_RoundTrips_AgainstTheRealStore()
+    {
+        using ServiceProvider provider = Build();
+        string userId;
+        string token;
+
+        using (IServiceScope scope = provider.CreateScope())
+        {
+            UserManager<ReusableAuthUser> users =
+                scope.ServiceProvider.GetRequiredService<UserManager<ReusableAuthUser>>();
+
+            ReusableAuthUser person = new() { UserName = "person@example.com", Email = "person@example.com" };
+            await users.CreateAsync(person, "Correct-horse-9!");
+            userId = person.Id;
+            token = AuthTokens.Encode(await users.GenerateChangeEmailTokenAsync(person, "new@example.com"));
+
+            IAccountService account = scope.ServiceProvider.GetRequiredService<IAccountService>();
+            Assert.Equal(
+                AuthStatus.Succeeded,
+                (await account.ConfirmEmailChangeAsync(userId, "new@example.com", token)).Status);
+        }
+
+        using (IServiceScope fresh = provider.CreateScope())
+        {
+            UserManager<ReusableAuthUser> users =
+                fresh.ServiceProvider.GetRequiredService<UserManager<ReusableAuthUser>>();
+
+            // Both must move, and must be findable by the new address - it is the sign-in
+            // identity now.
+            ReusableAuthUser? found = await users.FindByEmailAsync("new@example.com");
+            Assert.NotNull(found);
+            Assert.Equal("new@example.com", await users.GetUserNameAsync(found));
+            Assert.Null(await users.FindByEmailAsync("person@example.com"));
+        }
+    }
+
+    [Fact]
     public void ContextThatIsNotAnIdentityContext_FailsAtStartup()
     {
         ServiceCollection services = new();

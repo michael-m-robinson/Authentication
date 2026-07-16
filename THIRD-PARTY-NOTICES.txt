@@ -16,6 +16,19 @@ email token lifespan" sample at:
   aspnetcore/security/authentication/accconfirm.md
   https://learn.microsoft.com/en-us/aspnet/core/security/authentication/accconfirm
 
+-------------------------------------------------------------------------------
+ASP.NET Core (dotnet/aspnetcore)
+https://github.com/dotnet/aspnetcore
+
+The two-factor authenticator setup in Authentication/AccountService.cs — the
+otpauth:// URI format, the shared-key formatting, and the verify-then-enable
+order — is adapted from the scaffolded Identity UI at:
+  src/Identity/UI/src/Areas/Identity/Pages/V4/Account/Manage/EnableAuthenticator.cshtml.cs
+
+That repository is licensed under the MIT License, Copyright (c) .NET Foundation
+and Contributors. Its terms are the same MIT terms reproduced below.
+-------------------------------------------------------------------------------
+
 Code in that repository is licensed under LICENSE-CODE (MIT), reproduced below.
 (The repository's top-level LICENSE, CC-BY-4.0, covers the prose rather than the
 code samples.)

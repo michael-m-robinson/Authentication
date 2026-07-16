@@ -147,6 +147,52 @@ internal sealed class AuthService<TUser> : IAuthService
         return AuthResult.Failure();
     }
 
+    public async Task<AuthResult> TwoFactorSignInAsync(
+        string code,
+        bool isPersistent = false,
+        bool rememberClient = false)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return AuthResult.Failure();
+        }
+
+        // SignInManager reads the user from the short-lived cookie the first factor left
+        // behind. No first factor, nothing to complete - and no hash to burn here, because
+        // reaching this point at all required the password.
+        TUser? user = await _signInManager.GetTwoFactorAuthenticationUserAsync();
+        if (user is null)
+        {
+            return AuthResult.Failure();
+        }
+
+        SignInResult result = await _signInManager.TwoFactorAuthenticatorSignInAsync(
+            code, isPersistent, rememberClient);
+
+        // Succeeded, or the same generic failure for a wrong code, an expired one, and a
+        // locked-out account alike.
+        return result.Succeeded ? AuthResult.Success() : AuthResult.Failure();
+    }
+
+    public async Task<AuthResult> RedeemRecoveryCodeAsync(string recoveryCode)
+    {
+        if (string.IsNullOrWhiteSpace(recoveryCode))
+        {
+            return AuthResult.Failure();
+        }
+
+        TUser? user = await _signInManager.GetTwoFactorAuthenticationUserAsync();
+        if (user is null)
+        {
+            return AuthResult.Failure();
+        }
+
+        // Spends the code: Identity removes it from the user's remaining set on success.
+        SignInResult result = await _signInManager.TwoFactorRecoveryCodeSignInAsync(recoveryCode);
+
+        return result.Succeeded ? AuthResult.Success() : AuthResult.Failure();
+    }
+
     public async Task SignOutAsync()
     {
         // SignInManager reaches through HttpContext and throws without one. Signing out

@@ -34,6 +34,10 @@ internal sealed class ReusableAuthOptionsValidator : IValidateOptions<ReusableAu
         RequireText(options.CsrfCookieName, nameof(options.CsrfCookieName), failures);
         RequireText(options.CsrfHeaderName, nameof(options.CsrfHeaderName), failures);
 
+        // An empty issuer produces an otpauth:// URI with a blank label, which authenticator
+        // apps show as an unnamed entry the user cannot identify.
+        RequireText(options.AuthenticatorIssuer, nameof(options.AuthenticatorIssuer), failures);
+
         if (string.Equals(options.CookieName, options.CsrfCookieName, StringComparison.Ordinal))
         {
             failures.Add(

@@ -20,10 +20,10 @@ persistence or session handling of its own. See
 
 ## Status
 
-**Pre-release (0.1.0).** Registration, sign-in, sign-out, email confirmation,
-password reset, password change, session rotation and role management all work and
-are tested. Per-user settings (change email, phone, two-factor) are not built yet —
-see [PLAN.md](PLAN.md).
+**Pre-release (0.1.0).** Registration, sign-in (including two-factor), sign-out,
+email confirmation, password reset, password change, change email, phone,
+authenticator-app two-factor with recovery codes, session rotation and role
+management all work and are tested. See [PLAN.md](PLAN.md) for what's left.
 
 ## Quick start
 
@@ -199,6 +199,7 @@ switch (result.Status)
     case AuthStatus.Succeeded:
         break;
     case AuthStatus.RequiresTwoFactor:
+        // Password was right; now call auth.TwoFactorSignInAsync(code).
         break;
     case AuthStatus.PasswordRejected:
         // result.Errors holds the policy messages, safe to show.
@@ -208,6 +209,94 @@ switch (result.Status)
         break;
 }
 ```
+
+## Account settings
+
+Inject `IAccountService` for a user's own settings.
+
+### Changing email
+
+Two steps, because the new address has to prove it's theirs before it becomes their
+sign-in identity:
+
+```csharp
+// 1. emails a confirmation link to the NEW address
+await account.RequestEmailChangeAsync(userId, "new@example.com");
+
+// 2. from your confirmation page, with the values out of the link
+await account.ConfirmEmailChangeAsync(userId, "new@example.com", token);
+```
+
+`RequestEmailChangeAsync` always reports success, even if the address already
+belongs to someone else. That's deliberate: this library requires unique emails, so
+answering "that address is taken" would let any signed-in user enumerate the user
+base one address at a time. A taken address simply receives nothing.
+
+### Phone
+
+```csharp
+await account.SetPhoneNumberAsync(userId, "+44 7700 900000");
+```
+
+> **The number is not verified.** Nothing here proves the user owns it — never treat
+> it as a second factor or a recovery channel. Verifying means texting a code, and
+> ASP.NET Core Identity has no SMS sender at all; Microsoft's own scaffolded page
+> takes exactly the same position and calls the same unverified API.
+
+### Two-factor (authenticator app)
+
+```csharp
+// 1. show the user a QR code (or the key, to type by hand)
+TwoFactorSetup? setup = await account.BeginTwoFactorSetupAsync(userId);
+// setup.AuthenticatorUri -> render as a QR code
+// setup.SharedKey        -> show for manual entry
+
+// 2. they scan it, then type a code back. Verified before it is switched on.
+await account.EnableTwoFactorAsync(userId, code);
+
+// 3. give them recovery codes. Show once; this is their only way back in.
+IReadOnlyList<string> codes = await account.GenerateRecoveryCodesAsync(userId);
+```
+
+> `AuthenticatorUri` is a **URI, not an image**. Identity doesn't render QR codes and
+> neither do we — use a client-side library. Microsoft's own page ships an empty
+> `<div id="qrCode">` and a link to a doc saying the same.
+
+The code is verified *before* two-factor is switched on, on purpose: enabling it for
+an app that was never really configured locks the user out of their own account.
+
+Then signing in takes a second step:
+
+```csharp
+AuthResult result = await auth.SignInAsync(email, password);
+
+if (result.Status == AuthStatus.RequiresTwoFactor)
+{
+    await auth.TwoFactorSignInAsync(code);          // from their authenticator app
+    // or, if they've lost it:
+    await auth.RedeemRecoveryCodeAsync(recoveryCode);
+}
+```
+
+Turning it off and cutting off a lost device are different things:
+
+```csharp
+await account.DisableTwoFactorAsync(userId);       // off; their app still works if re-enabled
+await account.ResetAuthenticatorKeyAsync(userId);  // new key; the old app is now useless
+```
+
+`ResetAuthenticatorKeyAsync` also switches two-factor off — leaving it on with a key
+nobody holds would lock the account. The user has to run setup again.
+
+Recovery codes are spent as they're used, so it's worth showing how many are left:
+
+```csharp
+int left = await account.CountRecoveryCodesAsync(userId);
+```
+
+Every change here invalidates the user's other sessions within
+`SecurityStampValidationInterval`. Identity does that itself for email, phone and
+two-factor writes — unlike role changes, which need `IRoleService` to force it.
 
 ## Roles
 
@@ -353,6 +442,7 @@ builder.Services.AddReusableAuth(options =>
 | `PasswordResetTokenLifetime` | 1 hour | Shorter than confirmation: a leaked reset link hands over the account. |
 | `EmailConfirmationTokenLifetime` | 1 day | |
 | `RequireConfirmedEmail` | `true` | |
+| `AuthenticatorIssuer` | `ReusableAuth` | Set to your app's name — users read it in their authenticator app. |
 | `RequireUniqueEmail` | `true` | |
 | `BackgroundEmailQueueCapacity` | 1000 | Full queue applies backpressure. |
 
@@ -635,6 +725,8 @@ builder.Services.AddReusableAuth(options =>
 | Token providers (confirmation, reset) | Microsoft |
 | EF Core store and `DbContext` base | Microsoft |
 | `RoleManager` and role claims in the cookie | Microsoft |
+| TOTP two-factor, authenticator keys, recovery codes | Microsoft |
+| The `otpauth://` setup URI and key formatting | Microsoft's scaffolded Identity UI (MIT) |
 | Background email queue | Microsoft's docs sample (MIT — see [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt)) |
 | Options, secure defaults, startup validation | Ours |
 | Non-enumeration behaviour on top of Identity | Ours |
@@ -646,7 +738,7 @@ builder.Services.AddReusableAuth(options =>
 
 | Package | Purpose |
 | --- | --- |
-| `Authentication` | Core: options, DI wiring, hardened cookie + CSRF, `IAuthService`, `IRoleService`, abstractions. |
+| `Authentication` | Core: options, DI wiring, hardened cookie + CSRF, `IAuthService`, `IAccountService`, `IRoleService`, abstractions. |
 | `Authentication.EntityFrameworkCore` | Optional. Wires Identity's EF Core store and supplies a `DbContext` base. |
 
 ## Building

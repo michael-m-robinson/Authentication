@@ -165,6 +165,7 @@ public static class ReusableAuthServiceCollectionExtensions
         // supply IAuthEmailSender; the library mints tokens but never sends mail.
         services.TryAddScoped<IAuthService, AuthService<TUser>>();
         services.TryAddScoped<IRoleService, RoleService<TUser>>();
+        services.TryAddScoped<IAccountService, AccountService<TUser>>();
 
         // Auth emails are sent off the request thread, so that asking for a password
         // reset takes the same time whether or not the address is registered. Singleton

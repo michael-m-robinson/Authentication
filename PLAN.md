@@ -198,9 +198,31 @@ binding source.)
    `AuthStatus.Rejected` was added for this: role failures *are* explained, because
    they are administrative calls made by the host's own code about an id it already
    holds, with no anonymous caller to disclose anything to.
-7. **Per-user settings** — change email (re-confirming the new address), phone,
-   two-factor, claims. Each rotates the session where the change is a privilege
-   change.
+7. **Per-user settings** — *done.* `IAccountService`: change email (re-confirming the
+   new address), phone, and authenticator-app two-factor with recovery codes. Plus
+   `TwoFactorSignInAsync`/`RedeemRecoveryCodeAsync` on `IAuthService`. 147 tests.
+   Unlike roles, Identity refreshes the security stamp itself on all of these, so
+   nothing here has to force it.
+   What the research changed:
+   - **The recorded stamp list was wrong.** Milestone 3 noted 10 methods that bump
+     the stamp; there are 11. `ResetAuthenticatorKeyAsync` was missing — which is
+     exactly the one two-factor depends on.
+   - **Two-factor was a dead end.** `SignInAsync` returned `RequiresTwoFactor` with
+     nothing able to complete it, so any host enabling 2FA locked its users out. The
+     two new sign-in members close that.
+   - **Change-email is an enumeration risk for us specifically.** Identity defaults
+     `RequireUniqueEmail` to false so `DuplicateEmail` never fires; we set it true, so
+     it does. `RequestEmailChangeAsync` therefore mints and sends unconditionally and
+     always reports success, mirroring Microsoft's own page; the duplicate is refused
+     later, out of band, generically.
+   - **Identity's `ChangeEmailAsync` moves `Email` but not `UserName`.** Since the
+     user name is the sign-in identity here, leaving it behind would mean users kept
+     signing in with their old address. `ConfirmEmailChangeAsync` moves both.
+   - **Phone is set, not verified**, matching Microsoft's own scaffold. Identity has no
+     SMS sender of any kind; its phone token provider computes a code and sends
+     nothing. Documented rather than faked.
+   Claims are deliberately left to `UserManager` + `RotateSessionAsync`, which the
+   README covers — they need no service of their own.
 8. **Runtime configuration** — change settings without a restart. Needs design
    work: options are read through `IOptions<T>`, which is resolved once and cached,
    and the cookie handler's options are cached per scheme — so a runtime change

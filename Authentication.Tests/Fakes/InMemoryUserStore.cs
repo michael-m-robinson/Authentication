@@ -18,7 +18,11 @@ internal sealed class InMemoryUserStore :
     IUserEmailStore<ReusableAuthUser>,
     IUserSecurityStampStore<ReusableAuthUser>,
     IUserLockoutStore<ReusableAuthUser>,
-    IUserRoleStore<ReusableAuthUser>
+    IUserRoleStore<ReusableAuthUser>,
+    IUserPhoneNumberStore<ReusableAuthUser>,
+    IUserTwoFactorStore<ReusableAuthUser>,
+    IUserAuthenticatorKeyStore<ReusableAuthUser>,
+    IUserTwoFactorRecoveryCodeStore<ReusableAuthUser>
 {
     private readonly ConcurrentDictionary<string, ReusableAuthUser> _users = new(StringComparer.Ordinal);
 
@@ -29,6 +33,10 @@ internal sealed class InMemoryUserStore :
     // give back what it was handed, because it has no roles table to join to. Anything that
     // depends on the casing that comes out has to be tested against the real store.
     private readonly ConcurrentDictionary<string, HashSet<string>> _roles = new(StringComparer.Ordinal);
+
+    private readonly ConcurrentDictionary<string, string> _authenticatorKeys = new(StringComparer.Ordinal);
+
+    private readonly ConcurrentDictionary<string, List<string>> _recoveryCodes = new(StringComparer.Ordinal);
 
     public IReadOnlyCollection<ReusableAuthUser> Users => _users.Values.ToList();
 
@@ -203,6 +211,63 @@ internal sealed class InMemoryUserStore :
 
         return Task.FromResult(members);
     }
+
+    public Task SetPhoneNumberAsync(ReusableAuthUser user, string? phoneNumber, CancellationToken cancellationToken)
+    {
+        user.PhoneNumber = phoneNumber;
+        return Task.CompletedTask;
+    }
+
+    public Task<string?> GetPhoneNumberAsync(ReusableAuthUser user, CancellationToken cancellationToken)
+        => Task.FromResult(user.PhoneNumber);
+
+    public Task<bool> GetPhoneNumberConfirmedAsync(ReusableAuthUser user, CancellationToken cancellationToken)
+        => Task.FromResult(user.PhoneNumberConfirmed);
+
+    public Task SetPhoneNumberConfirmedAsync(ReusableAuthUser user, bool confirmed, CancellationToken cancellationToken)
+    {
+        user.PhoneNumberConfirmed = confirmed;
+        return Task.CompletedTask;
+    }
+
+    public Task SetTwoFactorEnabledAsync(ReusableAuthUser user, bool enabled, CancellationToken cancellationToken)
+    {
+        user.TwoFactorEnabled = enabled;
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> GetTwoFactorEnabledAsync(ReusableAuthUser user, CancellationToken cancellationToken)
+        => Task.FromResult(user.TwoFactorEnabled);
+
+    public Task SetAuthenticatorKeyAsync(ReusableAuthUser user, string key, CancellationToken cancellationToken)
+    {
+        _authenticatorKeys[user.Id] = key;
+        return Task.CompletedTask;
+    }
+
+    public Task<string?> GetAuthenticatorKeyAsync(ReusableAuthUser user, CancellationToken cancellationToken)
+        => Task.FromResult(_authenticatorKeys.GetValueOrDefault(user.Id));
+
+    public Task ReplaceCodesAsync(ReusableAuthUser user, IEnumerable<string> recoveryCodes, CancellationToken cancellationToken)
+    {
+        // Replace, not merge: generating a new set is documented to kill the old one.
+        _recoveryCodes[user.Id] = [.. recoveryCodes];
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> RedeemCodeAsync(ReusableAuthUser user, string code, CancellationToken cancellationToken)
+    {
+        if (!_recoveryCodes.TryGetValue(user.Id, out List<string>? codes) || !codes.Remove(code))
+        {
+            return Task.FromResult(false);
+        }
+
+        // Single-use: spent on redemption, as the real store does.
+        return Task.FromResult(true);
+    }
+
+    public Task<int> CountCodesAsync(ReusableAuthUser user, CancellationToken cancellationToken)
+        => Task.FromResult(_recoveryCodes.TryGetValue(user.Id, out List<string>? codes) ? codes.Count : 0);
 
     public void Dispose()
     {

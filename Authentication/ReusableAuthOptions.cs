@@ -221,6 +221,22 @@ public sealed class ReusableAuthOptions
     public TimeSpan EmailConfirmationTokenLifetime { get; set; } = TimeSpan.FromDays(1);
 
     /// <summary>
+    /// The name shown against this account in a user's authenticator app. Defaults to
+    /// <c>ReusableAuth</c>.
+    /// </summary>
+    /// <remarks>
+    /// Set this to your application's name. It is what the user reads in Google
+    /// Authenticator or 1Password when deciding which of a dozen six-digit codes is yours,
+    /// so leaving it at the default is unhelpful to them — and Identity's own default,
+    /// "Microsoft.AspNetCore.Identity.UI", is worse than unhelpful.
+    /// <para>
+    /// Changing it does not invalidate anything: existing authenticator entries keep the
+    /// label they were created with, and only new setups pick this up.
+    /// </para>
+    /// </remarks>
+    public string AuthenticatorIssuer { get; set; } = "ReusableAuth";
+
+    /// <summary>
     /// Whether an email address must be confirmed before the user can sign in.
     /// Defaults to <see langword="true"/>.
     /// </summary>

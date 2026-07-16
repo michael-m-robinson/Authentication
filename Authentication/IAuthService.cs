@@ -80,6 +80,45 @@ public interface IAuthService
     Task<AuthResult> SignInAsync(string email, string password, bool isPersistent = false);
 
     /// <summary>
+    /// Completes a sign-in that came back <see cref="AuthStatus.RequiresTwoFactor"/>, using
+    /// a code from the user's authenticator app.
+    /// </summary>
+    /// <param name="code">The six-digit code.</param>
+    /// <param name="isPersistent">Whether the session should survive the browser closing.</param>
+    /// <param name="rememberClient">
+    /// Whether to remember this device and skip the second factor on it next time.
+    /// </param>
+    /// <returns>
+    /// <see cref="AuthStatus.Succeeded"/>, or <see cref="AuthStatus.Failed"/> for a wrong
+    /// or expired code, a locked-out account, or no first factor to build on.
+    /// </returns>
+    /// <remarks>
+    /// Call this only after <see cref="SignInAsync"/> has returned
+    /// <see cref="AuthStatus.RequiresTwoFactor"/>: it relies on the short-lived cookie that
+    /// step leaves behind to know who is signing in. Without it there is nothing to
+    /// complete, and the result is an ordinary failure.
+    /// <para>
+    /// Failure is generic, as everywhere else. There is nothing to disclose anyway — the
+    /// caller has already proved they hold the password to get here.
+    /// </para>
+    /// </remarks>
+    Task<AuthResult> TwoFactorSignInAsync(string code, bool isPersistent = false, bool rememberClient = false);
+
+    /// <summary>
+    /// Completes a two-factor sign-in with a recovery code instead of the authenticator app.
+    /// </summary>
+    /// <param name="recoveryCode">One of the codes issued when two-factor was set up.</param>
+    /// <returns>
+    /// <see cref="AuthStatus.Succeeded"/>, or <see cref="AuthStatus.Failed"/>.
+    /// </returns>
+    /// <remarks>
+    /// This is the way back in for someone who has lost their authenticator. Each code works
+    /// once and is spent on use, so remaining codes run down — see
+    /// <see cref="IAccountService.CountRecoveryCodesAsync"/>.
+    /// </remarks>
+    Task<AuthResult> RedeemRecoveryCodeAsync(string recoveryCode);
+
+    /// <summary>
     /// Signs the current user out and clears the session cookie.
     /// </summary>
     /// <remarks>Signing out when nobody is signed in is a no-op, not an error.</remarks>
