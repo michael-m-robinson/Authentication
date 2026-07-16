@@ -23,15 +23,33 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
-  <!-- Shared package metadata. RepositoryUrl/PublishRepositoryUrl and Source Link
-       are deliberately absent until the repo has a remote. -->
+  <!-- Shared package metadata. -->
   <PropertyGroup>
     <Version>0.1.0</Version>
     <Authors>Michael Robinson</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageProjectUrl>https://github.com/michael-m-robinson/Authentication</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/michael-m-robinson/Authentication</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <!-- Source Link: lets a consumer step into this library's actual source from their
+       debugger, and stamps the package with the exact commit it was built from. That
+       traceability matters more here than in most libraries - anyone auditing what a
+       package does with their credentials can go from the binary to the line.
+       No Microsoft.SourceLink.GitHub PackageReference: the .NET 8+ SDK has Source Link
+       built in, and referencing the package would actively make things worse - the SDK
+       sets SuppressImplicitGitSourceLink when it sees one, so an older packaged version
+       would replace the current built-in one.
+       ContinuousIntegrationBuild is set only in CI, where the checkout is clean; on a
+       developer machine it would embed local paths. -->
+  <PropertyGroup>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 
 </Project>
