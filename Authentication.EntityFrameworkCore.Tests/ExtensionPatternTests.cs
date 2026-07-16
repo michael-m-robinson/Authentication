@@ -1,16 +1,15 @@
-using System.Security.Claims;
 using Authentication;
 using Authentication.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Authentication.EntityFrameworkCore.Tests;
 
 /// <summary>
-/// Runs the README's "Adding your own data" pattern for real: the one hosts are pointed
-/// at for alerts, likes, or anything else the library deliberately does not model.
+/// Runs the README's "Adding your own data" pattern for real: the one hosts are pointed at
+/// for anything the library does not model.
 /// </summary>
 /// <remarks>
 /// Documentation that has never been executed is a guess. The README previously carried an
@@ -59,7 +58,7 @@ public sealed class ExtensionPatternTests : IDisposable
             UserName = "person@example.com",
             Email = "person@example.com",
             DisplayName = "A Person",
-            AlertsEnabled = true,
+            TimeZoneId = "Europe/London",
         };
         await users.CreateAsync(user, "Correct-horse-9!");
 
@@ -67,42 +66,11 @@ public sealed class ExtensionPatternTests : IDisposable
 
         Assert.NotNull(found);
         Assert.Equal("A Person", found.DisplayName);
-        Assert.True(found.AlertsEnabled);
+        Assert.Equal("Europe/London", found.TimeZoneId);
     }
 
     [Fact]
-    public async Task AlertsPattern_SplitsTheEventFromTheDelivery()
-    {
-        using ServiceProvider provider = Build();
-        using IServiceScope scope = provider.CreateScope();
-        AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        UserManager<AppUser> users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
-
-        AppUser first = new() { UserName = "a@example.com", Email = "a@example.com" };
-        AppUser second = new() { UserName = "b@example.com", Email = "b@example.com" };
-        await users.CreateAsync(first, "Correct-horse-9!");
-        await users.CreateAsync(second, "Correct-horse-9!");
-
-        // One event, fanned out to two recipients.
-        Notification alert = new() { Message = "Scheduled downtime", RaisedAt = DateTimeOffset.UtcNow };
-        db.Notifications.Add(alert);
-        db.UserNotifications.Add(new UserNotification { Notification = alert, UserId = first.Id });
-        db.UserNotifications.Add(new UserNotification { Notification = alert, UserId = second.Id });
-        await db.SaveChangesAsync();
-
-        // The point of the split: read state is per person, not per event.
-        UserNotification firstsCopy = await db.UserNotifications.SingleAsync(n => n.UserId == first.Id);
-        firstsCopy.Read = true;
-        firstsCopy.ReadAt = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync();
-
-        Assert.Single(await db.Notifications.ToListAsync());
-        Assert.True(await db.UserNotifications.SingleAsync(n => n.UserId == first.Id) is { Read: true });
-        Assert.False((await db.UserNotifications.SingleAsync(n => n.UserId == second.Id)).Read);
-    }
-
-    [Fact]
-    public async Task LikesPattern_UniqueIndexMakesADoubleLikeIdempotent()
+    public async Task AHostsOwnTable_KeyedToTheUserId_RoundTrips()
     {
         using ServiceProvider provider = Build();
         using IServiceScope scope = provider.CreateScope();
@@ -112,36 +80,43 @@ public sealed class ExtensionPatternTests : IDisposable
         AppUser user = new() { UserName = "a@example.com", Email = "a@example.com" };
         await users.CreateAsync(user, "Correct-horse-9!");
 
-        db.Likes.Add(new Like { UserId = user.Id, EntityType = "Article", EntityId = "42" });
+        db.AuditEntries.Add(new AuditEntry
+        {
+            UserId = user.Id,
+            Action = "SignedIn",
+            OccurredAt = DateTimeOffset.UnixEpoch,
+        });
         await db.SaveChangesAsync();
 
-        // The README claims the unique index gives idempotency for free. Prove it: a
-        // second like is a constraint violation to catch, not a silent double-count.
-        db.Likes.Add(new Like { UserId = user.Id, EntityType = "Article", EntityId = "42" });
-
-        await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+        Assert.Equal("SignedIn", (await db.AuditEntries.SingleAsync(e => e.UserId == user.Id)).Action);
     }
 
     [Fact]
-    public async Task LikesPattern_AllowsTheSameUserToLikeDifferentThings()
+    public async Task AKeyOfUserId_SurvivesTheUserChangingTheirEmail()
     {
+        // Why the README says to key rows to user.Id and not to a username or an email
+        // address: both are things a user can change, and a row keyed to one is a row that
+        // belongs to whoever holds that name next.
         using ServiceProvider provider = Build();
         using IServiceScope scope = provider.CreateScope();
         AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         UserManager<AppUser> users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
 
-        AppUser user = new() { UserName = "a@example.com", Email = "a@example.com" };
+        AppUser user = new() { UserName = "old@example.com", Email = "old@example.com" };
         await users.CreateAsync(user, "Correct-horse-9!");
 
-        db.Likes.Add(new Like { UserId = user.Id, EntityType = "Article", EntityId = "42" });
-        db.Likes.Add(new Like { UserId = user.Id, EntityType = "Article", EntityId = "43" });
-        db.Likes.Add(new Like { UserId = user.Id, EntityType = "Comment", EntityId = "42" });
-
-        // The index is on all three columns; scoping it to UserId alone would let someone
-        // like exactly one thing, ever.
+        db.AuditEntries.Add(new AuditEntry
+        {
+            UserId = user.Id,
+            Action = "SignedIn",
+            OccurredAt = DateTimeOffset.UnixEpoch,
+        });
         await db.SaveChangesAsync();
 
-        Assert.Equal(3, await db.Likes.CountAsync());
+        await users.SetUserNameAsync(user, "new@example.com");
+        await users.SetEmailAsync(user, "new@example.com");
+
+        Assert.Single(await db.AuditEntries.Where(e => e.UserId == user.Id).ToListAsync());
     }
 
     [Fact]
@@ -154,7 +129,7 @@ public sealed class ExtensionPatternTests : IDisposable
         // Both the library's tables and the host's are on one context, so a host's write
         // and its auth data share a transaction.
         Assert.NotNull(await db.Users.ToListAsync());
-        Assert.NotNull(await db.Likes.ToListAsync());
+        Assert.NotNull(await db.AuditEntries.ToListAsync());
     }
 
     public void Dispose() => _connection.Dispose();
@@ -163,33 +138,20 @@ public sealed class ExtensionPatternTests : IDisposable
 
     private sealed class AppUser : IdentityUser
     {
-        public bool AlertsEnabled { get; set; } = true;
         public string? DisplayName { get; set; }
+
+        public string? TimeZoneId { get; set; }
     }
 
-    private sealed class Notification
+    private sealed class AuditEntry
     {
         public int Id { get; set; }
-        public string Message { get; set; } = "";
-        public DateTimeOffset RaisedAt { get; set; }
-    }
 
-    private sealed class UserNotification
-    {
-        public int Id { get; set; }
-        public int NotificationId { get; set; }
-        public Notification? Notification { get; set; }
         public string UserId { get; set; } = "";
-        public bool Read { get; set; }
-        public DateTimeOffset? ReadAt { get; set; }
-    }
 
-    private sealed class Like
-    {
-        public int Id { get; set; }
-        public string UserId { get; set; } = "";
-        public string EntityType { get; set; } = "";
-        public string EntityId { get; set; } = "";
+        public string Action { get; set; } = "";
+
+        public DateTimeOffset OccurredAt { get; set; }
     }
 
     private sealed class AppDbContext : ReusableAuthDbContext<AppUser>
@@ -198,11 +160,7 @@ public sealed class ExtensionPatternTests : IDisposable
         {
         }
 
-        public DbSet<Notification> Notifications => Set<Notification>();
-
-        public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
-
-        public DbSet<Like> Likes => Set<Like>();
+        public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -210,9 +168,8 @@ public sealed class ExtensionPatternTests : IDisposable
             // schema, so a host adding its own entities must chain up.
             base.OnModelCreating(modelBuilder);
 
-            modelBuilder.Entity<Like>()
-                .HasIndex(l => new { l.UserId, l.EntityType, l.EntityId })
-                .IsUnique();
+            modelBuilder.Entity<AuditEntry>()
+                .HasIndex(e => new { e.UserId, e.OccurredAt });
         }
     }
 

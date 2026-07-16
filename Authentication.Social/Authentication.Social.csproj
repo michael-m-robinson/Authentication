@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Shared settings (framework, analyzers, license, version) come from
+       ../Directory.Build.props. -->
+
+  <PropertyGroup>
+    <PackageId>Authentication.Social</PackageId>
+    <Description>Likes and alerts for the Authentication library, keyed to the signed-in Identity user. Optional: the core Authentication package carries no social schema, so an app that does not want likes never sees them.</Description>
+    <PackageTags>authentication;identity;aspnetcore;likes;notifications;social</PackageTags>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Authentication/Authentication.csproj" />
+  </ItemGroup>
+
+  <!-- The services are internal by design: a host resolves ILikeService and never names the
+       implementation. Tests need the concrete type to construct it directly, without a
+       container standing between the test and what it is asserting. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Authentication.Social.Tests" />
+  </ItemGroup>
+
+  <!-- Likes and alerts live on the host's existing auth DbContext, so a like and the
+       alert it raises commit in one transaction, as the spec requires. That means an EF
+       dependency, which is exactly why this is a separate package rather than part of
+       the storage-agnostic core. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.10" />
+  </ItemGroup>
+
+</Project>
