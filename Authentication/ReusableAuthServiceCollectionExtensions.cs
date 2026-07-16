@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 
@@ -63,7 +64,7 @@ public static class ReusableAuthServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        RegisterOptions(services, configure);
+        RegisterOptions(services, configuration: null, configure);
         RegisterCookieAuthentication(services);
         RegisterIdentity<TUser>(services);
         RegisterAntiforgery(services);
@@ -71,16 +72,112 @@ public static class ReusableAuthServiceCollectionExtensions
         return services;
     }
 
-    private static void RegisterOptions(IServiceCollection services, Action<ReusableAuthOptions>? configure)
+    /// <summary>
+    /// Adds the reusable auth stack over the built-in <see cref="ReusableAuthUser"/>, reading
+    /// settings from configuration.
+    /// </summary>
+    /// <param name="services">The service collection to add to.</param>
+    /// <param name="configuration">
+    /// The section to bind <see cref="ReusableAuthOptions"/> from, e.g.
+    /// <c>builder.Configuration.GetSection("Auth")</c>.
+    /// </param>
+    /// <param name="configure">
+    /// Optional overrides applied <em>after</em> binding, so code beats configuration.
+    /// </param>
+    /// <returns>The same <paramref name="services"/>, for chaining.</returns>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="services"/> or <paramref name="configuration"/> is null.
+    /// </exception>
+    /// <remarks>
+    /// <strong>Settings are read once, at startup.</strong> Editing the configuration of a
+    /// running app changes nothing until it restarts — see
+    /// <see cref="AddReusableAuth{TUser}(IServiceCollection, IConfiguration, Action{ReusableAuthOptions}?)"/>
+    /// for why that is not a limitation this library can lift.
+    /// </remarks>
+    public static IServiceCollection AddReusableAuth(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        Action<ReusableAuthOptions>? configure = null)
+        => services.AddReusableAuth<ReusableAuthUser>(configuration, configure);
+
+    /// <summary>
+    /// Adds the reusable auth stack over a host-supplied user type, reading settings from
+    /// configuration.
+    /// </summary>
+    /// <typeparam name="TUser">
+    /// The user type, deriving from <see cref="IdentityUser"/> and having a parameterless
+    /// constructor.
+    /// </typeparam>
+    /// <param name="services">The service collection to add to.</param>
+    /// <param name="configuration">
+    /// The section to bind <see cref="ReusableAuthOptions"/> from, e.g.
+    /// <c>builder.Configuration.GetSection("Auth")</c>.
+    /// </param>
+    /// <param name="configure">
+    /// Optional overrides applied <em>after</em> binding, so code beats configuration.
+    /// </param>
+    /// <returns>The same <paramref name="services"/>, for chaining.</returns>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="services"/> or <paramref name="configuration"/> is null.
+    /// </exception>
+    /// <remarks>
+    /// Settings still bind through the same validation, so a configuration file that weakens
+    /// or contradicts the auth setup fails the host at boot rather than at runtime.
+    /// <para>
+    /// <strong>Settings are read once, at startup — a reload changes nothing.</strong> Binding
+    /// a reloading source such as <c>appsettings.json</c> does not make the auth stack
+    /// reconfigurable while it runs, and this library cannot make it so. ASP.NET Core Identity
+    /// reads its own options through <see cref="IOptions{TOptions}"/>, which resolves once and
+    /// caches forever: <c>UserManager</c> captures the password and lockout policy in its
+    /// constructor, <c>SecurityStampValidator</c> captures its interval, and the antiforgery
+    /// service is a singleton holding a copy. None of them re-read anything, whatever the
+    /// configuration does. It is a known framework issue (dotnet/aspnetcore#55162), and the
+    /// only honest fix is upstream.
+    /// </para>
+    /// <para>
+    /// So this exists to let settings live in <c>appsettings.json</c>, environment variables
+    /// or a secret store rather than in code — not to make them changeable without a restart.
+    /// </para>
+    /// </remarks>
+    public static IServiceCollection AddReusableAuth<TUser>(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        Action<ReusableAuthOptions>? configure = null)
+        where TUser : IdentityUser<string>, new()
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        RegisterOptions(services, configuration, configure);
+        RegisterCookieAuthentication(services);
+        RegisterIdentity<TUser>(services);
+        RegisterAntiforgery(services);
+
+        return services;
+    }
+
+    private static void RegisterOptions(
+        IServiceCollection services,
+        IConfiguration? configuration,
+        Action<ReusableAuthOptions>? configure)
     {
         OptionsBuilder<ReusableAuthOptions> builder = services.AddOptions<ReusableAuthOptions>();
 
+        if (configuration is not null)
+        {
+            builder.Bind(configuration);
+        }
+
+        // After the bind, so a host that sets something in code means it: the delegate is the
+        // last word regardless of what the configuration file says.
         if (configure is not null)
         {
             builder.Configure(configure);
         }
 
-        // A contradictory or weakened config fails the host at boot, not at runtime.
+        // A contradictory or weakened config fails the host at boot, not at runtime. This
+        // covers bound configuration too - a bad appsettings.json is caught the same way a
+        // bad line of code is.
         builder.ValidateOnStart();
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<ReusableAuthOptions>, ReusableAuthOptionsValidator>());

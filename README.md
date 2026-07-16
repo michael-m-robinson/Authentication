@@ -450,6 +450,48 @@ A contradictory or weakened configuration **fails at startup**, not at runtime �
 `__Host-` cookie with a `Domain`, a password floor below 8, a relative `LoginPath`,
 a CSRF cookie sharing the session cookie's name.
 
+### From appsettings.json
+
+Settings can live in configuration instead of code — `appsettings.json`,
+environment variables, Key Vault, anything bound to `IConfiguration`:
+
+```csharp
+builder.Services.AddReusableAuth(builder.Configuration.GetSection("Auth"));
+```
+
+```json
+{
+  "Auth": {
+    "SessionLifetime": "04:00:00",
+    "PasswordMinimumLength": 16,
+    "LockoutMaxFailedAttempts": 3,
+    "AuthenticatorIssuer": "Contoso"
+  }
+}
+```
+
+Anything you don't set keeps its secure default, and the same startup validation
+applies — a config file can't smuggle in a setup that a line of code would have been
+rejected for. You can pass both, and code wins:
+
+```csharp
+builder.Services.AddReusableAuth(builder.Configuration.GetSection("Auth"), options =>
+{
+    options.LoginPath = "/Account/Login";   // beats the config file
+});
+```
+
+> **Settings are read once, at startup. Editing configuration on a running app
+> changes nothing until it restarts** — and that is not something this library can
+> fix. ASP.NET Core Identity reads its own options through `IOptions<T>`, which
+> resolves once and caches for the life of the process: `UserManager` captures the
+> password and lockout policy in its constructor, `SecurityStampValidator` captures
+> its interval, and the antiforgery service is a singleton holding a copy. None of
+> them re-read anything, whatever the configuration does. It's a known framework
+> issue ([dotnet/aspnetcore#55162](https://github.com/dotnet/aspnetcore/issues/55162))
+> and the only real fix is upstream. Bind configuration to keep settings out of code
+> and out of source control — not to change them without a restart.
+
 ## Entity Framework Core storage
 
 Reference `Authentication.EntityFrameworkCore` and a database provider:

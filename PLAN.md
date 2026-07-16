@@ -223,11 +223,36 @@ binding source.)
      nothing. Documented rather than faked.
    Claims are deliberately left to `UserManager` + `RotateSessionAsync`, which the
    README covers — they need no service of their own.
-8. **Runtime configuration** — change settings without a restart. Needs design
-   work: options are read through `IOptions<T>`, which is resolved once and cached,
-   and the cookie handler's options are cached per scheme — so a runtime change
-   would not reach either today. `ValidateOnStart` also only validates at boot, so
-   validation has to move to every change.
+8. **Runtime configuration** — *dropped; replaced with configuration binding.* The
+   feature cannot be built correctly, and the reason is architectural rather than
+   effort:
+   - `UserManager` captures `IOptions<IdentityOptions>.Value` in its constructor, and
+     `IOptions<T>` resolves once and caches for the process lifetime. Being scoped
+     does not help — every new instance reads the same frozen singleton. Password
+     policy and lockout are fixed at first use. Known open framework bug:
+     dotnet/aspnetcore#55162.
+   - `SecurityStampValidator` does the same with a get-only property, so the
+     revalidation interval is fixed too.
+   - `DefaultAntiforgery` is a *singleton* holding a `readonly` copy — fixed hardest
+     of all.
+   - Cookie options *could* reload (the handler calls `OptionsMonitor.Get(scheme)`
+     every request), but stock `AddCookie` registers no change-token source, so
+     nothing fires.
+   - And our own `.Configure<IOptions<ReusableAuthOptions>>(...)` pattern is frozen
+     regardless: the dependency is `IOptions`, so the delegate would hand any
+     recomputed target startup-time values anyway.
+   Making it work would mean replacing `UserManager`, the validators and the stamp
+   validator with our own — hand-rolling the security-critical pieces Microsoft ships
+   and reviews, for a feature the framework may fix upstream. A partial version was
+   rejected as worse than none: a library where `SessionLifetime` reloads but
+   `PasswordMinimumLength` silently does not is a trap, because the two look identical
+   at the call site.
+   *Instead:* `AddReusableAuth(IConfiguration)` binds settings from
+   `appsettings.json`, environment variables or a secret store — Microsoft's official
+   options pattern, through the same startup validation, with code overriding
+   configuration. Documented as startup-only, with a test asserting that a runtime
+   change is ignored. That test doubles as a tripwire: if it ever fails, the framework
+   has been fixed and the docs need updating.
 9. **CI + packaging** — Actions: build (warnings-as-errors) + test + Semgrep +
    Sonar + vulnerable-package scan + emailed summary; `dotnet pack`/`push` on a
    tagged release (`rules/ci-scanning.md`, `rules/packaging.md`).
