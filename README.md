@@ -421,6 +421,180 @@ public sealed class AppDbContext : ReusableAuthDbContext<AppUser>
 }
 ```
 
+## Adding your own data (alerts, likes, anything)
+
+The library stops at authentication. Anything your app needs *about* a user —
+alerts, likes, preferences, an audit trail — is yours to model, and Microsoft's
+[documented way](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/customize-identity-model)
+of doing it works unchanged here: put simple fields on your user type, and
+everything list-shaped in its own table with a `UserId` foreign key.
+
+### Simple fields go on the user
+
+```csharp
+public sealed class AppUser : IdentityUser
+{
+    public bool AlertsEnabled { get; set; } = true;
+    public string? DisplayName { get; set; }
+}
+
+builder.Services.AddReusableAuth<AppUser>();
+```
+
+### Lists go in their own table
+
+There is no standard .NET package for alerts or likes — ABP has no notification
+module (only toast popups), and Orchard Core's is a CMS channel-preference system.
+But there *is* a standard shape, arrived at independently by
+[ASP.NET Boilerplate's notification system](https://aspnetboilerplate.com/Pages/Documents/Notification-System),
+[Orchard Core](https://docs.orchardcore.net/en/latest/reference/modules/Notifications/)
+and [ABP's CMS Kit reactions](https://abp.io/docs/en/abp/latest/Modules/Cms-Kit/Reactions).
+Worth copying rather than reinventing.
+
+**Alerts: split the event from the delivery.** One `Notification` row for the thing
+that happened, one `UserNotification` row per recipient carrying *that person's*
+read state. The obvious single-table shortcut — one row with a nullable `UserId`,
+blank meaning "everyone" — falls over the moment two people need different read
+state for the same alert.
+
+```csharp
+public sealed class Notification                 // the event: written once
+{
+    public int Id { get; set; }
+    public string Message { get; set; } = "";
+    public DateTimeOffset RaisedAt { get; set; }
+}
+
+public sealed class UserNotification             // the delivery: one row per recipient
+{
+    public int Id { get; set; }
+    public int NotificationId { get; set; }
+    public string UserId { get; set; } = "";
+    public bool Read { get; set; }
+    public DateTimeOffset? ReadAt { get; set; }
+}
+```
+
+A global alert is then the same `Notification` fanned out to a `UserNotification`
+per user — "fan-out-on-write". That's the right default: recipient counts are
+small, and it's what makes per-person read state possible at all.
+
+**Likes: a join table with a unique constraint.**
+
+```csharp
+public sealed class Like
+{
+    public int Id { get; set; }
+    public string UserId { get; set; } = "";
+    public string EntityType { get; set; } = "";   // "Article", "Comment", ...
+    public string EntityId { get; set; } = "";
+}
+```
+
+The unique index is doing two jobs: one like per person per thing, and free
+idempotency — a double-submitted like violates the constraint, which you catch and
+treat as a no-op rather than double-counting. Keep a denormalised `LikeCount` on the
+parent once `COUNT(*)` stops being cheap.
+
+Hang them off your context alongside the auth tables:
+
+```csharp
+public sealed class AppDbContext : ReusableAuthDbContext<AppUser>
+{
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+
+    public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
+    public DbSet<Like> Likes => Set<Like>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);   // <- do not omit: this builds the auth tables
+
+        modelBuilder.Entity<Like>()
+            .HasIndex(l => new { l.UserId, l.EntityType, l.EntityId })
+            .IsUnique();
+    }
+}
+```
+
+> Forgetting `base.OnModelCreating(modelBuilder)` silently drops the entire Identity
+> schema — no error, just no auth tables in your next migration.
+
+```bash
+dotnet ef migrations add AddAlertsAndLikes
+dotnet ef database update
+```
+
+Then write whatever API reads best for you — it's your domain, so nothing here
+constrains it:
+
+```csharp
+public sealed class AlertService(AppDbContext db, IAuthService auth)
+{
+    public async Task AddForUserAsync(string userId, string message)
+    {
+        Notification alert = new() { Message = message, RaisedAt = DateTimeOffset.UtcNow };
+        db.Notifications.Add(alert);
+        db.UserNotifications.Add(new UserNotification { Notification = alert, UserId = userId });
+
+        await db.SaveChangesAsync();   // one transaction: the alert and its delivery
+    }
+
+    public Task<List<UserNotification>> UnreadForCurrentUserAsync()
+    {
+        string? userId = auth.CurrentPrincipal?.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        return db.UserNotifications.Where(n => n.UserId == userId && !n.Read).ToListAsync();
+    }
+}
+```
+
+Turning a feature off is then a plain property on your own user — no library flag
+needed, and no schema you don't want:
+
+```csharp
+if (user.AlertsEnabled)
+{
+    await alerts.AddForUserAsync(user.Id, "Something happened.");
+}
+```
+
+**If you want them live**, persist first and push second: write the rows, then
+signal over [SignalR](https://learn.microsoft.com/en-us/aspnet/core/signalr/introduction)
+with `Clients.User(userId)`, which reaches every tab that person has open. SignalR is
+transport, not storage — a disconnected client misses the push, so the database write
+is what makes the alert real. Microsoft's
+[social-style notifications walkthrough](https://learn.microsoft.com/en-us/archive/msdn-magazine/2018/august/cutting-edge-social-style-notifications-with-asp-net-core-signalr)
+covers the shape. If the alert has to survive a crash between the business write and
+the publish, that's the
+[transactional outbox](https://microservices.io/patterns/data/transactional-outbox.html) —
+the same pattern
+[Microsoft's own microservices guidance](https://learn.microsoft.com/en-us/dotnet/architecture/microservices/multi-container-microservice-net-applications/integration-event-based-microservice-communications)
+recommends.
+
+### Why this isn't in the library
+
+Identity has no notion of alerts or likes, and neither does this library, on
+purpose. They are your domain, not authentication's — a package that shipped them
+would push a schema onto every consumer that wanted none of it, and would make an
+auth library carry code that has nothing to do with auth. A flag would not help:
+`AlertsEnabled = false` still ships the tables, the types and the migration.
+
+Nor is there a package to defer to. The .NET ecosystem has no dominant library for
+either — ABP's own support forum tells people to build notifications themselves, and
+likes are hand-rolled everywhere. What exists is the *pattern* above, which is why it
+is documented here rather than implemented here. Microsoft's guidance for
+app-specific user data says the same thing: subclass, add your own tables.
+
+> **Don't put this kind of data in claims.** Claims are serialised into the auth
+> cookie and re-sent on *every* request. A growing list — every alert, every like —
+> inflates that cookie until it is chunked across multiple `Set-Cookie` headers
+> (`ChunkingCookieManager` splits at ~4050 characters) and eventually until the
+> browser rejects it outright with `400 Bad Request - Request Header Or Cookie Too
+> Large`. Claims are for small, stable facts about identity. Lists belong in a
+> table, fetched by user id.
+
 ## Local development and the `__Host-` cookie prefix
 
 Cookies default to the `__Host-` prefix, which asks the browser itself to enforce
