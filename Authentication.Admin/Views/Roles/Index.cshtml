@@ -1,0 +1,65 @@
+@model IReadOnlyList<RoleSummary>
+@{
+    ViewData["Title"] = "Roles";
+}
+
+<div class="d-flex align-items-center mb-4">
+    <div>
+        <h1 class="h2 mb-0">Roles</h1>
+        <p class="text-muted mb-0">Grant a role to a user from their detail page.</p>
+    </div>
+    <form class="form-inline ml-auto" asp-controller="Roles" asp-action="Create" method="post">
+        <div class="input-group input-group-sm">
+            <input type="text" name="roleName" class="form-control" placeholder="New role name" required />
+            <div class="input-group-append">
+                <button class="btn btn-primary" type="submit">Create</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table align-items-center table-flush">
+            <thead class="thead-light">
+                <tr>
+                    <th>Role</th>
+                    <th>Members</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Count == 0)
+                {
+                    <tr><td colspan="3" class="text-center text-muted py-4">No roles yet.</td></tr>
+                }
+                else
+                {
+                    foreach (RoleSummary role in Model)
+                    {
+                        <tr>
+                            <td>
+                                @role.Name
+                                @if (role.IsAdminRole)
+                                {
+                                    <span class="badge badge-danger ml-2">Admin gate</span>
+                                }
+                            </td>
+                            <td>@role.MemberCount</td>
+                            <td class="text-right">
+                                <a class="btn btn-sm btn-neutral" asp-controller="Roles" asp-action="Members" asp-route-name="@role.Name">Members</a>
+                                @if (!role.IsAdminRole)
+                                {
+                                    <form asp-controller="Roles" asp-action="Delete" asp-route-name="@role.Name" method="post" class="d-inline"
+                                          data-confirm="Delete the '@role.Name' role? It is removed from everyone who holds it.">
+                                        <button class="btn btn-sm btn-outline-danger">Delete</button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -1,0 +1,73 @@
+@model BroadcastViewModel
+@{
+    ViewData["Title"] = "Broadcast";
+}
+
+<div class="mb-4">
+    <h1 class="h2 mb-0">Broadcast an announcement</h1>
+    <p class="text-muted mb-0">Sends one alert to every user.</p>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body">
+                <form asp-controller="AdminAlerts" asp-action="Broadcast" method="post">
+                    <div asp-validation-summary="All" class="text-danger mb-3"></div>
+
+                    <div class="form-group">
+                        <label asp-for="AlertType" class="form-control-label">Alert type</label>
+                        <input asp-for="AlertType" class="form-control" list="alert-types" placeholder="e.g. SystemAnnouncement" />
+                        <datalist id="alert-types">
+                            @foreach (string type in BroadcastViewModel.SuggestedTypes)
+                            {
+                                <option value="@type"></option>
+                            }
+                        </datalist>
+                        <small class="text-muted">
+                            Any type: a built-in one, or a constant your app defines. Your app renders the
+                            wording for it, unless you give a message below.
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label asp-for="Message" class="form-control-label">Message (optional)</label>
+                        <textarea asp-for="Message" class="form-control" rows="3"
+                                  placeholder="Leave blank to let your app render the wording from the type."></textarea>
+                        <small class="text-muted">For a one-off announcement whose wording is not fixed by the type.</small>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group col-md-8">
+                            <label asp-for="RelatedContentType" class="form-control-label">Related content type (optional)</label>
+                            <input asp-for="RelatedContentType" class="form-control" placeholder="e.g. Article" />
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label asp-for="RelatedContentId" class="form-control-label">Content id</label>
+                            <input asp-for="RelatedContentId" type="number" class="form-control" />
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary"
+                            data-confirm="Send this announcement to every user?">Send to all users</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card bg-secondary">
+            <div class="card-body">
+                <h5>How announcements read</h5>
+                <p class="text-muted mb-2"><small>
+                    An alert stores a <em>type</em>, and optionally a <em>message</em>. For a type with a
+                    fixed meaning, your app turns it into words (and can translate it). For a one-off
+                    announcement, put the words in the message.
+                </small></p>
+                <p class="text-muted mb-0"><small>
+                    Every user gets their own copy, so each person's read state is separate.
+                </small></p>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,193 @@
+@model UserDetailViewModel
+@inject Authentication.Admin.AdminOptions Options
+@{
+    ViewData["Title"] = "User";
+    AdminUserDetail u = Model.User;
+    var availableRoles = Model.AllRoles.Where(r => !u.Roles.Contains(r)).ToList();
+}
+
+<div class="d-flex align-items-center mb-4">
+    <a class="btn btn-sm btn-neutral mr-3" asp-controller="Users" asp-action="Index"><i class="ni ni-bold-left"></i></a>
+    <div>
+        <h1 class="h2 mb-0">@u.Email</h1>
+        <p class="text-muted mb-0"><small>@u.Id</small></p>
+    </div>
+    @if (Options.EnableAlerts)
+    {
+        <a class="btn btn-sm btn-neutral ml-auto" asp-controller="AdminAlerts" asp-action="UserAlerts" asp-route-id="@u.Id">
+            <i class="ni ni-bell-55"></i> View alerts
+        </a>
+    }
+</div>
+
+@* One-time secrets, shown once after a redirect *@
+@if (Model.GeneratedPassword is not null)
+{
+    <div class="alert alert-warning">
+        <strong>New password (shown once):</strong> <code>@Model.GeneratedPassword</code>
+        <div><small>Copy it now. It is not stored and will not be shown again.</small></div>
+    </div>
+}
+@if (Model.RecoveryCodes is not null)
+{
+    <div class="alert alert-warning">
+        <strong>Recovery codes (shown once):</strong>
+        <div class="mt-2">@foreach (var c in Model.RecoveryCodes) { <code class="mr-2">@c</code> }</div>
+    </div>
+}
+
+<div class="row">
+    <!-- Status & lockout -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header"><h5 class="mb-0">Status</h5></div>
+            <div class="card-body">
+                <p>
+                    Email:
+                    @if (u.EmailConfirmed) { <span class="badge badge-success">Confirmed</span> }
+                    else { <span class="badge badge-warning">Unconfirmed</span> }
+                </p>
+                <p>Lockout: @(u.LockedOutNow ? $"locked until {u.LockoutEnd:g}" : "active")</p>
+
+                <div class="d-flex flex-wrap gap-2">
+                    @if (!u.EmailConfirmed)
+                    {
+                        <form asp-action="Confirm" asp-route-id="@u.Id" method="post" class="mr-2 mb-2">
+                            <button class="btn btn-sm btn-outline-success">Force-confirm email</button>
+                        </form>
+                    }
+                    @if (u.LockedOutNow)
+                    {
+                        <form asp-action="Unlock" asp-route-id="@u.Id" method="post" class="mr-2 mb-2">
+                            <button class="btn btn-sm btn-outline-primary">Unlock</button>
+                        </form>
+                    }
+                    else
+                    {
+                        <form asp-action="Lock" asp-route-id="@u.Id" method="post" class="form-inline mr-2 mb-2">
+                            <input type="number" name="days" value="30" min="1" class="form-control form-control-sm mr-1" style="width:5rem" />
+                            <button class="btn btn-sm btn-outline-danger">Lock (days)</button>
+                        </form>
+                    }
+                    <form asp-action="ForceSignOut" asp-route-id="@u.Id" method="post" class="mr-2 mb-2"
+                          data-confirm="Sign this user out of all sessions?">
+                        <button class="btn btn-sm btn-outline-warning">Force sign-out</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Password & phone -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header"><h5 class="mb-0">Credentials</h5></div>
+            <div class="card-body">
+                <form asp-action="ResetPassword" asp-route-id="@u.Id" method="post" class="mb-4">
+                    <label class="form-control-label">Reset password</label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" name="newPassword" class="form-control" placeholder="Leave blank to generate one" autocomplete="off" />
+                        <div class="input-group-append">
+                            <button class="btn btn-outline-primary">Reset</button>
+                        </div>
+                    </div>
+                    <small class="text-muted">A generated password is shown once.</small>
+                </form>
+
+                <form asp-action="SetPhone" asp-route-id="@u.Id" method="post">
+                    <label class="form-control-label">Phone number</label>
+                    <div class="input-group input-group-sm">
+                        <input type="tel" name="phoneNumber" value="@u.PhoneNumber" class="form-control" placeholder="None" />
+                        <div class="input-group-append">
+                            <button class="btn btn-outline-primary">Save</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Roles -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header"><h5 class="mb-0">Roles</h5></div>
+            <div class="card-body">
+                <div class="mb-3">
+                    @if (u.Roles.Count == 0)
+                    {
+                        <span class="text-muted">No roles.</span>
+                    }
+                    else
+                    {
+                        foreach (string role in u.Roles)
+                        {
+                            <form asp-action="RemoveRole" asp-route-id="@u.Id" method="post" class="d-inline">
+                                <input type="hidden" name="roleName" value="@role" />
+                                <button class="btn btn-sm btn-outline-secondary mr-2 mb-2">
+                                    @role <i class="ni ni-fat-remove"></i>
+                                </button>
+                            </form>
+                        }
+                    }
+                </div>
+                @if (availableRoles.Count > 0)
+                {
+                    <form asp-action="AddRole" asp-route-id="@u.Id" method="post" class="form-inline">
+                        <select name="roleName" class="form-control form-control-sm mr-2">
+                            @foreach (string role in availableRoles)
+                            {
+                                <option value="@role">@role</option>
+                            }
+                        </select>
+                        <button class="btn btn-sm btn-outline-primary">Add role</button>
+                    </form>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Two-factor -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header"><h5 class="mb-0">Two-factor</h5></div>
+            <div class="card-body">
+                <p>
+                    Status: @(u.TwoFactorEnabled ? "enabled" : "disabled").
+                    Recovery codes left: @u.RecoveryCodesRemaining.
+                </p>
+                <p class="text-muted"><small>An admin cannot turn two-factor on; only the user's own app can prove setup.</small></p>
+                <div class="d-flex flex-wrap">
+                    @if (u.TwoFactorEnabled)
+                    {
+                        <form asp-action="DisableTwoFactor" asp-route-id="@u.Id" method="post" class="mr-2 mb-2"
+                              data-confirm="Disable two-factor for this user?">
+                            <button class="btn btn-sm btn-outline-danger">Disable 2FA</button>
+                        </form>
+                    }
+                    <form asp-action="ResetAuthenticator" asp-route-id="@u.Id" method="post" class="mr-2 mb-2"
+                          data-confirm="Reset the authenticator key? This disables 2FA until they set it up again.">
+                        <button class="btn btn-sm btn-outline-warning">Reset authenticator</button>
+                    </form>
+                    <form asp-action="RegenerateRecoveryCodes" asp-route-id="@u.Id" method="post" class="mr-2 mb-2"
+                          data-confirm="Regenerate recovery codes? The old codes stop working.">
+                        <button class="btn btn-sm btn-outline-primary">New recovery codes</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Danger zone -->
+<div class="card border-danger">
+    <div class="card-body d-flex align-items-center">
+        <div>
+            <h5 class="text-danger mb-0">Delete user</h5>
+            <small class="text-muted">Permanent. Their account and sign-in are removed.</small>
+        </div>
+        <form asp-action="Delete" asp-route-id="@u.Id" method="post" class="ml-auto"
+              data-confirm="Delete @u.Email permanently? This cannot be undone.">
+            <button class="btn btn-danger">Delete</button>
+        </form>
+    </div>
+</div>

@@ -77,6 +77,30 @@ public sealed class AlertServiceTests : IDisposable
         Assert.Null(stored.ActorUserId);
     }
 
+    [Fact]
+    public async Task CreateAsync_StoresAMessage_WhenGiven()
+    {
+        using SocialDbContext db = NewContext();
+
+        await ServiceOver(db).CreateAsync(
+            new CreateAlertRequest(Recipient, AlertTypes.SystemAnnouncement, Message: "Down for maintenance at 5pm."),
+            default);
+
+        UserAlert stored = await db.Set<UserAlert>().SingleAsync();
+        Assert.Equal("Down for maintenance at 5pm.", stored.Message);
+    }
+
+    [Fact]
+    public async Task CreateAsync_LeavesMessageNull_ForAnOrdinaryTypedAlert()
+    {
+        using SocialDbContext db = NewContext();
+
+        await ServiceOver(db).CreateAsync(LikedRequest(), default);
+
+        UserAlert stored = await db.Set<UserAlert>().SingleAsync();
+        Assert.Null(stored.Message);
+    }
+
     [Theory]
     [InlineData("", AlertTypes.ContentLiked)]
     [InlineData("   ", AlertTypes.ContentLiked)]

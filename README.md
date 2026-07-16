@@ -672,8 +672,8 @@ being reordered.
 
 ### Telling your users what happened
 
-Alerts carry no message text. A `UserAlert` records *what* happened, who did it and
-to which content, and your app decides what that reads like:
+By default an alert carries no message text. A `UserAlert` records *what* happened, who
+did it and to which content, and your app decides what that reads like:
 
 ```csharp
 public sealed class UserAlert
@@ -682,6 +682,7 @@ public sealed class UserAlert
     public required string RecipientUserId { get; set; }  // who is being told
     public string? ActorUserId { get; set; }              // who did it, if anyone
     public required string AlertType { get; set; }        // AlertTypes.ContentLiked, ...
+    public string? Message { get; set; }                  // usually null; see below
     public string? RelatedContentType { get; set; }
     public long? RelatedContentId { get; set; }
     public bool IsRead { get; set; }
@@ -690,10 +691,18 @@ public sealed class UserAlert
 }
 ```
 
+For a like or a comment, leave `Message` null and render the wording from `AlertType`.
 A stored string would be wrong in every language but the one that wrote it, would
-freeze the wording at the moment the alert was raised, and would be one more place
-for user-supplied text to end up rendered as HTML. Keeping alerts as facts means you
+freeze the wording at the moment the alert was raised, and would be one more place for
+user-supplied text to end up rendered as HTML. Keeping typed alerts as facts means you
 can translate them, restyle them, or show a like as an avatar instead of a sentence.
+
+**When the wording genuinely is arbitrary**, such as a system announcement an admin
+types at the moment they send it, that reasoning does not fit, because there is no type
+to render from. That is what `Message` is for: pass it on `CreateAlertRequest` and
+render it (encoded, which Razor does for you, since it is operator text, not markup).
+Prefer a type for anything with a fixed meaning; reach for `Message` only for genuinely
+free-form text.
 
 Raise your own alongside the library's, on the same table:
 
@@ -859,6 +868,141 @@ that belongs to whoever holds that name next.
 > Large`. Claims are for small, stable facts about identity. Lists belong in a
 > table, fetched by user id.
 
+## Admin panel
+
+Reference `Authentication.Admin` for a drop-in admin panel: a Razor Class Library that
+mounts into any site using the library and gives an administrator the pages to manage
+everyone else. The UI, its views, and its assets all ship inside the package, so
+attaching it is a package reference and two calls.
+
+```csharp
+builder.Services.AddReusableAuth(auth =>
+{
+    auth.LoginPath = "/account/login";
+    auth.AccessDeniedPath = "/account/denied";  // so the admin gate redirects, not 403s
+});
+builder.Services.AddReusableAuthEntityFrameworkStores<AppDbContext>();
+
+builder.Services.AddReusableAuthAdmin<AppUser>();   // or AddReusableAuthAdmin() for the built-in user
+
+var app = builder.Build();
+// ... UseAuthentication(); UseAuthorization(); ...
+app.MapReusableAuthAdmin();
+```
+
+The panel lives at `/admin`, gated behind the `Admin` role. Set `AccessDeniedPath` (as
+above) so a signed-in non-admin is redirected rather than shown a bare 403. If the host
+also wired `Authentication.Social`, the alerts pages light up automatically.
+
+### The first administrator
+
+Nothing seeds an admin, so on a fresh database the panel has a one-time setup page at
+`/admin/setup`. It creates the first administrator (or promotes an existing user by
+email), and **seals itself the moment an administrator exists** - from then on the
+route is a genuine 404. Run it once, immediately after deploying, behind whatever
+network restriction you can. For an extra guard on that first-run window, set a shared
+secret the setup page will require:
+
+```csharp
+builder.Services.AddReusableAuthAdmin<AppUser>(admin => admin.SetupToken = builder.Configuration["Admin:SetupToken"]);
+```
+
+After the first admin exists, further administrators are made from the Users pages.
+
+### What an admin can do
+
+- **Users**: list and search, view a user, lock and unlock, delete, force-confirm an
+  email, reset a password (type one or have a strong one generated and shown once),
+  force sign-out of all sessions, set a phone number, and add or remove roles.
+- **Roles**: create and delete roles, and see a role's members.
+- **Two-factor**: disable a user's two-factor, reset their authenticator key, and
+  regenerate recovery codes. (An admin cannot *enable* two-factor - only the user's own
+  authenticator can prove setup.)
+- **Alerts** (when Social is wired): broadcast an announcement to every user, and view a
+  user's alerts.
+
+Every action that should end a user's sessions - lock, delete, password reset, role
+removal, force sign-out - refreshes that user's security stamp, so it takes effect on
+their open sessions within `SecurityStampValidationInterval` (a minute by default), not
+only when their cookie expires. The panel also refuses to strip the **last**
+administrator (delete, lock, or admin-role removal), so you cannot lock everyone out.
+
+### Announcements carry a type, and optionally text
+
+A broadcast sends one alert to every user. Choose the alert **type** - a built-in
+`AlertTypes` value or a constant your app defines - and your app renders the wording for
+it (which keeps it translatable). For a one-off announcement whose words are not fixed
+by a type, fill in the optional **message** and it is stored on the alert and shown as
+typed. See [Telling your users what happened](#telling-your-users-what-happened) for
+when to prefer a type over a message.
+
+### The JSON API
+
+Every operation is also a JSON endpoint under `/admin/api/...`, for a separate frontend
+or SPA. It calls the same services as the pages, so the behaviour - the security-stamp
+refresh, the last-admin guard, the non-enumeration posture - is identical.
+
+- Reads return JSON (`GET /admin/api/users?search=…`, `GET /admin/api/users/{id}`).
+- Mutations use the matching verb (`POST /admin/api/users/{id}/lock`,
+  `DELETE /admin/api/users/{id}`) and return `204`, or a
+  [Problem Details](https://www.rfc-editor.org/rfc/rfc9457) `400` with the reason.
+- It shares the site's cookie auth, so it shares the CSRF protection: every unsafe call
+  must carry the antiforgery token. Fetch one from `GET /admin/api/antiforgery/token`
+  (it returns the token and the header name) and echo it on each `POST`/`PUT`/`DELETE`.
+
+### The audit trail
+
+Every state-changing admin action - through the pages or the API - is recorded: who did
+it, what, to which user, when, and the outcome. By default the trail is written as
+structured log events (no database table, nothing to migrate), so it goes wherever your
+logging already goes. For a durable, queryable trail, register your own sink:
+
+```csharp
+public sealed class DbAdminAuditLog : IAdminAuditLog
+{
+    public Task RecordAsync(AdminAuditEntry entry, CancellationToken ct) { /* write a row */ }
+}
+
+builder.Services.AddScoped<IAdminAuditLog, DbAdminAuditLog>();   // yours wins over the default
+```
+
+The entry carries identifiers and outcomes, never secrets: a password reset is recorded
+as having happened, never the password.
+
+### Options
+
+| Option | Default | Purpose |
+| --- | --- | --- |
+| `AdminRoleName` | `"Admin"` | The role that gates the panel. Keep the default unless you also apply your own policy. |
+| `RoutePrefix` | `"admin"` | Where the panel mounts (`/admin`). |
+| `EnableAlerts` | auto | On when Social is wired; the alerts pages and API appear. |
+| `SetupToken` | `null` | A shared secret the first-admin setup page requires. **Required in Production**: with no token set, the setup page is sealed (404) outside Development, so a production deployment sets one to bootstrap the first admin. |
+| `EnsureAdminRoleOnStartup` | `true` | Create the `Admin` role at startup so setup can grant it. |
+
+### Hardening the host
+
+The panel renders privileged HTML and exposes a JSON API, so a few host-pipeline settings
+finish the job (the package cannot set these for you; they are the host's concern):
+
+- **`AddProblemDetails()` + `UseExceptionHandler()`** so the admin API's errors, unhandled
+  exceptions, and the library's 401/403 challenges all come back as consistent
+  [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) Problem Details.
+- **A Content-Security-Policy** with `frame-ancestors 'none'` (clickjacking protection for an
+  admin panel; `frame-ancestors` must be a header, not a `<meta>` tag). The panel loads all
+  its scripts and styles from external files with no inline `<script>` and no inline `style=`,
+  so a strict `script-src 'self'; style-src 'self'` needs no nonces or `'unsafe-inline'`.
+- **`UseHsts()` + `UseHttpsRedirection()`**, `X-Content-Type-Options: nosniff`, and a
+  `Referrer-Policy`.
+- **Rate limiting** ([ASP.NET Core rate limiting](https://learn.microsoft.com/en-us/aspnet/core/performance/rate-limit))
+  on the setup and sign-in routes, to blunt setup-token guessing and the first-run race.
+
+### What the audit trail captures
+
+Every state-changing admin action (UI or API) is recorded, and so are denied attempts to
+reach an admin endpoint (`401`/`403`). One gap: an antiforgery-validation failure short-circuits
+before both audit hooks, so a forged request that fails CSRF is not in the trail (it is
+rejected with a `400` regardless).
+
 ## Local development and the `__Host-` cookie prefix
 
 Cookies default to the `__Host-` prefix, which asks the browser itself to enforce
@@ -916,6 +1060,7 @@ builder.Services.AddReusableAuth(options =>
 | `Authentication` | Core: options, DI wiring, hardened cookie + CSRF, `IAuthService`, `IAccountService`, `IRoleService`, abstractions. |
 | `Authentication.EntityFrameworkCore` | Optional. Wires Identity's EF Core store and supplies a `DbContext` base. |
 | `Authentication.Social` | Optional. Likes and alerts on your own `DbContext`: `ILikeService`, `IAlertService`, `IContentSource`. |
+| `Authentication.Admin` | Optional. A drop-in admin panel (Razor Class Library): manage users, roles, two-factor and alerts, with a matching JSON API and an audit trail. |
 
 ## Building
 

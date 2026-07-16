@@ -1,0 +1,84 @@
+@using System.Security.Claims
+@inject Authentication.IAuthService Auth
+@inject Authentication.Admin.AdminOptions Options
+@{
+    ClaimsPrincipal? user = Auth.CurrentPrincipal;
+    string? email = user?.FindFirstValue(ClaimTypes.Name) ?? user?.FindFirstValue(ClaimTypes.Email);
+    string Base = "~/_content/Authentication.Admin";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] · Admin</title>
+    <link rel="stylesheet" href="@Base/vendor/nucleo/css/nucleo.css" asp-append-version="true" />
+    <link rel="stylesheet" href="@Base/css/argon.min.css" asp-append-version="true" />
+    <link rel="stylesheet" href="@Base/css/admin.css" asp-append-version="true" />
+</head>
+<body class="bg-secondary">
+    <!-- Top Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-default">
+        <div class="container-fluid">
+            <a class="navbar-brand font-weight-bold" asp-controller="Dashboard" asp-action="Index">
+                Admin<span class="text-primary">Panel</span>
+            </a>
+            <ul class="navbar-nav flex-row align-items-center">
+                <li class="nav-item mr-3">
+                    <a class="nav-link text-white" asp-controller="Users" asp-action="Index">
+                        <i class="ni ni-single-02"></i> Users
+                    </a>
+                </li>
+                <li class="nav-item mr-3">
+                    <a class="nav-link text-white" asp-controller="Roles" asp-action="Index">
+                        <i class="ni ni-badge"></i> Roles
+                    </a>
+                </li>
+                @if (Options.EnableAlerts)
+                {
+                    <li class="nav-item mr-3">
+                        <a class="nav-link text-white" asp-controller="AdminAlerts" asp-action="Broadcast">
+                            <i class="ni ni-bell-55"></i> Alerts
+                        </a>
+                    </li>
+                }
+                <li class="nav-item d-none d-lg-block mr-3">
+                    <span class="text-white"><small>@email</small></span>
+                </li>
+                <li class="nav-item">
+                    <a class="btn btn-sm btn-neutral" href="/">Back to site</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Page Content -->
+    <main class="py-5">
+        <div class="container-fluid">
+            <partial name="_StatusMessage" />
+            @RenderBody()
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="py-4 bg-default">
+        <div class="container-fluid text-center">
+            <span class="text-light"><small>
+                Made with
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="1em" height="1em"
+                     class="admin-heart" fill="#e63946" aria-label="love" role="img">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                </svg>
+                by Michael M. Robinson
+            </small></span>
+        </div>
+    </footer>
+
+    <script src="@Base/lib/jquery/dist/jquery.min.js" asp-append-version="true"></script>
+    <script src="@Base/vendor/bootstrap/bootstrap.bundle.min.js" asp-append-version="true"></script>
+    <script src="@Base/vendor/js-cookie/js.cookie.js" asp-append-version="true"></script>
+    <script src="@Base/js/argon.min.js" asp-append-version="true"></script>
+    <script src="@Base/js/admin.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,91 @@
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<!-- Dashboard Header -->
+<div class="mb-4">
+    <h1 class="h2 mb-0">Dashboard</h1>
+    <p class="text-muted mb-0">Manage users, roles, and access for this site.</p>
+</div>
+
+<!-- Stat Cards -->
+<div class="row">
+    <div class="col-xl-4 col-md-6 mb-4">
+        <div class="card card-stats">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col">
+                        <h5 class="card-title text-uppercase text-muted mb-0">Users</h5>
+                        <span class="h2 font-weight-bold mb-0">@Model.UserCount</span>
+                    </div>
+                    <div class="col-auto">
+                        <div class="icon icon-shape bg-gradient-primary text-white rounded-circle shadow">
+                            <i class="ni ni-single-02"></i>
+                        </div>
+                    </div>
+                </div>
+                <a class="text-nowrap" asp-controller="Users" asp-action="Index"><small>Manage users</small></a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-4 col-md-6 mb-4">
+        <div class="card card-stats">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col">
+                        <h5 class="card-title text-uppercase text-muted mb-0">Roles</h5>
+                        <span class="h2 font-weight-bold mb-0">@Model.RoleCount</span>
+                    </div>
+                    <div class="col-auto">
+                        <div class="icon icon-shape bg-gradient-info text-white rounded-circle shadow">
+                            <i class="ni ni-badge"></i>
+                        </div>
+                    </div>
+                </div>
+                <a class="text-nowrap" asp-controller="Roles" asp-action="Index"><small>Manage roles</small></a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-4 col-md-6 mb-4">
+        <div class="card card-stats">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col">
+                        <h5 class="card-title text-uppercase text-muted mb-0">Administrators</h5>
+                        <span class="h2 font-weight-bold mb-0">@Model.AdminCount</span>
+                    </div>
+                    <div class="col-auto">
+                        <div class="icon icon-shape bg-gradient-danger text-white rounded-circle shadow">
+                            <i class="ni ni-key-25"></i>
+                        </div>
+                    </div>
+                </div>
+                <span class="text-nowrap text-muted"><small>Users in the Admin role</small></span>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (Model.AlertsEnabled)
+{
+    <!-- Alerts entry, shown only when Social is wired -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body d-flex align-items-center">
+                    <div class="icon icon-shape bg-gradient-warning text-white rounded-circle mr-3">
+                        <i class="ni ni-bell-55"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-0">Alerts</h5>
+                        <small class="text-muted">Broadcast a system announcement, or view a user's alerts.</small>
+                    </div>
+                    <a class="btn btn-sm btn-primary ml-auto" asp-controller="AdminAlerts" asp-action="Broadcast">Open</a>
+                </div>
+            </div>
+        </div>
+    </div>
+}

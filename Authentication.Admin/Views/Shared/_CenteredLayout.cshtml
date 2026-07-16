@@ -1,0 +1,30 @@
+@{
+    string Base = "~/_content/Authentication.Admin";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] · Admin</title>
+    <link rel="stylesheet" href="@Base/vendor/nucleo/css/nucleo.css" asp-append-version="true" />
+    <link rel="stylesheet" href="@Base/css/argon.min.css" asp-append-version="true" />
+    <link rel="stylesheet" href="@Base/css/admin.css" asp-append-version="true" />
+</head>
+<body class="bg-default">
+    <!-- Centered Card Shell: setup and other standalone pages -->
+    <main class="py-6">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-5 col-md-7">
+                    @RenderBody()
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="@Base/lib/jquery/dist/jquery.min.js" asp-append-version="true"></script>
+    <script src="@Base/vendor/bootstrap/bootstrap.bundle.min.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
