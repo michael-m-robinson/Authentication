@@ -686,6 +686,44 @@ and it did.
 
 Liking your own content tells nobody.
 
+### Naming your content types
+
+`"Article"` above is a magic string, and a typo in one is a quiet bug: `"Artcile"`
+reaches your `IContentSource`, matches nothing, and comes back as content that isn't
+available. No exception, just a like button that does nothing.
+
+Name them once, in your own code:
+
+```csharp
+public static class ContentTypes
+{
+    public const string Article = "Article";
+    public const string Comment = "Comment";
+}
+
+await likes.LikeAsync(userId, ContentTypes.Article, 42, ct);
+```
+
+The compiler now catches the typo, and the constants are usable in a `switch`, which
+an `IContentSource` covering several types will want.
+
+**Not an enum**, and not one the library ships. The library has never heard of your
+content types, so an enum here would have to be yours, and converting it at the
+boundary is where this gets dangerous: `((int)kind).ToString()` stores `"0"`, and
+reordering the enum silently reassigns every like already in the database. Constants
+are the same string in the code and in the column, with nothing to convert and
+nothing to reorder. It's the same call the library makes for `AlertTypes`, for the
+same reason.
+
+If you'd rather have an enum for your own use, keep it away from the column and pass
+`nameof`:
+
+```csharp
+await likes.LikeAsync(userId, nameof(ContentKind.Article), 42, ct);
+```
+
+The stored value stays the name, so it survives the enum being reordered.
+
 ### Describing your content
 
 The library has no idea what your content is, so you tell it. Implement
@@ -698,7 +736,7 @@ public sealed class MyContentSource(AppDbContext db) : IContentSource
     public async Task<ContentInfo?> GetAsync(
         string userId, string contentType, long contentId, CancellationToken ct)
     {
-        if (contentType != "Article")
+        if (contentType != ContentTypes.Article)
         {
             return null;
         }
