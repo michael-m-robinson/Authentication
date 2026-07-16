@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <!-- Shared settings (framework, analyzers, license, version) come from
+       ../Directory.Build.props. The Razor SDK is what makes this a Razor Class Library:
+       it compiles the .cshtml views into this assembly and packs wwwroot as static web
+       assets a host serves from _content/Authentication.Admin/, so a consuming site gets
+       the whole admin UI - controllers, views, CSS, JS - from one package reference. -->
+
+  <PropertyGroup>
+    <PackageId>Authentication.Admin</PackageId>
+    <Description>A droppable admin panel for the Authentication library: manage users, roles, two-factor, and alerts from any ASP.NET Core site. Mount it with one call; the UI, views and assets ship inside the package. Gated behind an Admin role.</Description>
+    <PackageTags>authentication;identity;aspnetcore;admin;razor-class-library</PackageTags>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- This RCL ships MVC controllers + views, not Razor Pages/components, so the views must
+         be compiled with MVC Razor support. Without this the .cshtml files are found but not
+         compiled for MVC and the panel renders nothing. -->
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+    <!-- The RCL's static web assets (Argon CSS/JS) are the host's to serve; this is the
+         default for the Razor SDK, stated for clarity. -->
+    <StaticWebAssetBasePath>_content/Authentication.Admin</StaticWebAssetBasePath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+  <!-- MVC, [Authorize], antiforgery, UserManager/RoleManager and the hosted-service
+       abstractions all ship in the shared framework. A FrameworkReference takes them from
+       there rather than from NuGet: zero added supply-chain surface, the same stance the
+       core package takes. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!-- The admin drives everything through the library's public service interfaces and
+       Microsoft's UserManager<TUser>; it never names a DbContext, so it does NOT reference
+       Authentication.EntityFrameworkCore and stays storage-agnostic like the core.
+       It references Social for IAlertService/AlertTypes; the alerts controller is compiled
+       out at runtime on a host that never wired Social (see AdminAlertsControllerFeatureProvider). -->
+  <ItemGroup>
+    <ProjectReference Include="../Authentication/Authentication.csproj" />
+    <ProjectReference Include="../Authentication.Social/Authentication.Social.csproj" />
+  </ItemGroup>
+
+  <!-- The admin services are internal by design: a host resolves IAdminUserService and never
+       names the closed generic. Tests construct AdminUserService<TUser> directly. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Authentication.Admin.Tests" />
+  </ItemGroup>
+
+</Project>

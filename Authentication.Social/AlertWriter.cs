@@ -60,6 +60,7 @@ internal sealed class AlertWriter<TContext>
             RecipientUserId = request.RecipientUserId,
             ActorUserId = request.ActorUserId,
             AlertType = request.AlertType,
+            Message = request.Message,
             RelatedContentType = request.RelatedContentType,
             RelatedContentId = request.RelatedContentId,
             IsRead = false,

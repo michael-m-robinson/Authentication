@@ -116,12 +116,18 @@ public interface IAlertService
 /// </param>
 /// <param name="RelatedContentType">The content it concerns, if any.</param>
 /// <param name="RelatedContentId">The id of that content.</param>
+/// <param name="Message">
+/// Optional literal text, for a message whose wording is not derivable from
+/// <paramref name="AlertType"/> - an admin announcement, say. Leave null for ordinary typed
+/// alerts, whose wording the host renders from the type. See <see cref="UserAlert.Message"/>.
+/// </param>
 public sealed record CreateAlertRequest(
     string RecipientUserId,
     string AlertType,
     string? ActorUserId = null,
     string? RelatedContentType = null,
-    long? RelatedContentId = null);
+    long? RelatedContentId = null,
+    string? Message = null);
 
 /// <summary>
 /// A page of alerts.

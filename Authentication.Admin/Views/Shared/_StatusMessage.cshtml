@@ -1,0 +1,20 @@
+@{
+    string? status = TempData["Status"] as string;
+    string? error = TempData["Error"] as string;
+}
+@if (!string.IsNullOrEmpty(status))
+{
+    <!-- Success banner (PRG) -->
+    <div class="alert alert-success" role="alert">
+        <span class="alert-icon"><i class="ni ni-check-bold"></i></span>
+        <span class="alert-text">@status</span>
+    </div>
+}
+@if (!string.IsNullOrEmpty(error))
+{
+    <!-- Error banner (PRG) -->
+    <div class="alert alert-danger" role="alert">
+        <span class="alert-icon"><i class="ni ni-fat-remove"></i></span>
+        <span class="alert-text">@error</span>
+    </div>
+}

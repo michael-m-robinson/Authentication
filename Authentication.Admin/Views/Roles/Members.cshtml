@@ -1,0 +1,43 @@
+@model RoleMembersViewModel
+@{
+    ViewData["Title"] = $"{Model.RoleName} members";
+}
+
+<div class="d-flex align-items-center mb-4">
+    <a class="btn btn-sm btn-neutral mr-3" asp-controller="Roles" asp-action="Index"><i class="ni ni-bold-left"></i></a>
+    <div>
+        <h1 class="h2 mb-0">@Model.RoleName</h1>
+        <p class="text-muted mb-0">@Model.Members.Count member(s). Remove a role from a user on their detail page.</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table align-items-center table-flush">
+            <thead class="thead-light">
+                <tr>
+                    <th>Email</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Members.Count == 0)
+                {
+                    <tr><td colspan="2" class="text-center text-muted py-4">No members.</td></tr>
+                }
+                else
+                {
+                    foreach (MemberRow member in Model.Members)
+                    {
+                        <tr>
+                            <td>@(member.Email ?? member.Id)</td>
+                            <td class="text-right">
+                                <a class="btn btn-sm btn-neutral" asp-controller="Users" asp-action="Details" asp-route-id="@member.Id">Manage user</a>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

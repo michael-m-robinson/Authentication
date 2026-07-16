@@ -48,6 +48,21 @@ public sealed class UserAlert
     public required string AlertType { get; set; }
 
     /// <summary>
+    /// Optional literal text for the alert, for the cases where the wording cannot be derived
+    /// from <see cref="AlertType"/>: an admin's one-off announcement, or any message whose
+    /// content is not known ahead of time. Null for the ordinary typed alerts.
+    /// </summary>
+    /// <remarks>
+    /// <strong>Prefer leaving this null.</strong> For an event with a fixed meaning - a like, a
+    /// comment - the wording belongs in the host's rendering of <see cref="AlertType"/>, which
+    /// keeps it translatable and restyleable and stores no user text. This field exists for the
+    /// one case that rule does not fit: a message that <em>is</em> arbitrary text chosen at the
+    /// moment it is raised, such as a system announcement written in an admin panel. When you
+    /// render it, encode it (Razor does this for you); it is text an operator typed, not markup.
+    /// </remarks>
+    public string? Message { get; set; }
+
+    /// <summary>
     /// The content it concerns, if any.
     /// </summary>
     public string? RelatedContentType { get; set; }

@@ -1,0 +1,54 @@
+@model UserAlertsViewModel
+@using Authentication.Social
+@{
+    ViewData["Title"] = "User alerts";
+}
+
+<div class="d-flex align-items-center mb-4">
+    <a class="btn btn-sm btn-neutral mr-3" asp-controller="Users" asp-action="Details" asp-route-id="@Model.UserId">
+        <i class="ni ni-bold-left"></i>
+    </a>
+    <div>
+        <h1 class="h2 mb-0">Alerts</h1>
+        <p class="text-muted mb-0"><small>@Model.UserId</small></p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="list-group list-group-flush">
+        @if (Model.Page.Alerts.Count == 0)
+        {
+            <div class="list-group-item text-center text-muted py-5">This user has no alerts.</div>
+        }
+        else
+        {
+            foreach (UserAlert alert in Model.Page.Alerts)
+            {
+                <div class="list-group-item @(alert.IsRead ? "" : "bg-light")">
+                    <div class="d-flex align-items-center">
+                        <div>
+                            <span class="badge badge-primary">@alert.AlertType</span>
+                            @if (!string.IsNullOrEmpty(alert.Message))
+                            {
+                                <span class="ml-2">@alert.Message</span>
+                            }
+                            else if (alert.RelatedContentType is not null)
+                            {
+                                <span class="ml-2 text-muted">@alert.RelatedContentType #@alert.RelatedContentId</span>
+                            }
+                        </div>
+                        <small class="text-muted ml-auto">@alert.CreatedAt.ToLocalTime().ToString("g")</small>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+
+    @if (Model.Page.NextCursor is not null)
+    {
+        <div class="card-footer text-center">
+            <a class="btn btn-sm btn-neutral" asp-controller="AdminAlerts" asp-action="UserAlerts"
+               asp-route-id="@Model.UserId" asp-route-before="@Model.Page.NextCursor">Older</a>
+        </div>
+    }
+</div>

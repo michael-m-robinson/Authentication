@@ -17,6 +17,9 @@ internal sealed class UserAlertConfiguration : IEntityTypeConfiguration<UserAler
         builder.Property(a => a.RecipientUserId).HasMaxLength(450).IsRequired();
         builder.Property(a => a.ActorUserId).HasMaxLength(450);
         builder.Property(a => a.AlertType).HasMaxLength(128).IsRequired();
+        // A notification line, not an essay: bounded so a stored announcement cannot grow
+        // without limit, and long enough for a sentence or two.
+        builder.Property(a => a.Message).HasMaxLength(1024);
         builder.Property(a => a.RelatedContentType).HasMaxLength(128);
         builder.Property(a => a.CreatedAt).IsRequired();
 

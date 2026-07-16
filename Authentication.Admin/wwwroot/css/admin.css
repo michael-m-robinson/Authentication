@@ -1,0 +1,30 @@
+/* Small overrides on top of Argon for the admin panel. The design comes from argon.min.css;
+   this only smooths a few edges. */
+
+/* Give wrapped button rows breathing room without relying on utility classes Argon may not
+   define. */
+.card-body form.d-inline,
+.card-body .form-inline {
+    vertical-align: top;
+}
+
+/* The card-based action panels read better with a consistent minimum height per row. */
+.card.h-100 {
+    min-height: 100%;
+}
+
+/* Danger zone: make the delete card unmistakable. */
+.card.border-danger {
+    border-width: 1px;
+}
+
+/* One-time secret blocks: monospace and easy to select. */
+code {
+    user-select: all;
+}
+
+/* Footer heart. Kept out of an inline style= attribute so a host can run a strict
+   style-src 'self' CSP without 'unsafe-inline'. */
+.admin-heart {
+    vertical-align: -0.125em;
+}
