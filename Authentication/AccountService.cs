@@ -304,7 +304,7 @@ internal sealed class AccountService<TUser> : IAccountService
             key);
 
     /// <summary>
-    /// Groups the key in fours for manual entry. Microsoft's setup page, unchanged —
+    /// Groups the key in fours for manual entry. Microsoft's setup page, unchanged,
     /// including the lower-casing, so the key reads the same as everywhere else people are
     /// used to seeing it.
     /// </summary>

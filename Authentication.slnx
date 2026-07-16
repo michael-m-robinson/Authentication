@@ -1,6 +1,7 @@
 <Solution>
   <Project Path="Authentication.EntityFrameworkCore.Tests/Authentication.EntityFrameworkCore.Tests.csproj" />
   <Project Path="Authentication.EntityFrameworkCore/Authentication.EntityFrameworkCore.csproj" />
+  <Project Path="Authentication.SmokeTests/Authentication.SmokeTests.csproj" />
   <Project Path="Authentication.Tests/Authentication.Tests.csproj" />
   <Project Path="Authentication/Authentication.csproj" />
 </Solution>

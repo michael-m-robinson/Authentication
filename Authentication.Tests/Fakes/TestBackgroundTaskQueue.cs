@@ -9,7 +9,7 @@ namespace Authentication.Tests.Fakes;
 /// <remarks>
 /// Substituted for the real queue so queued work runs deterministically instead of racing
 /// the hosted service. It also lets a test observe that a call queued work <em>without</em>
-/// running it — which is the whole point of
+/// running it, which is the whole point of
 /// <see cref="IAuthService.RequestPasswordResetAsync"/>: it must do no account-dependent
 /// work on the calling thread.
 /// </remarks>

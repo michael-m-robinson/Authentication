@@ -18,7 +18,7 @@ public sealed class ReusableAuthOptions
     /// </summary>
     /// <remarks>
     /// The <c>__Host-</c> prefix is a browser-enforced guarantee that the cookie is
-    /// Secure, path-scoped to <c>/</c>, and carries no <c>Domain</c> — which stops a
+    /// Secure, path-scoped to <c>/</c>, and carries no <c>Domain</c>, which stops a
     /// compromised sibling subdomain from overwriting the session cookie. Setting
     /// <see cref="CookieDomain"/> is incompatible with the prefix and is rejected
     /// at startup; drop the prefix deliberately if you need a domain-wide cookie.
@@ -47,15 +47,15 @@ public sealed class ReusableAuthOptions
     /// requests that drive CSRF while still surviving normal top-level navigation.
     /// </summary>
     /// <remarks>
-    /// <see cref="SameSiteMode.None"/> is a real weakening — it lets any site send the
-    /// cookie — and is only defensible for a genuinely cross-origin SPA that relies on
+    /// <see cref="SameSiteMode.None"/> is a real weakening (it lets any site send the
+    /// cookie) and is only defensible for a genuinely cross-origin SPA that relies on
     /// the CSRF double-submit check. <see cref="SameSiteMode.Unspecified"/> is rejected
     /// at startup rather than silently deferring to browser-specific behaviour.
     /// </remarks>
     public SameSiteMode CookieSameSite { get; set; } = SameSiteMode.Lax;
 
     /// <summary>
-    /// How long a session stays valid. Defaults to 8 hours — roughly a working day,
+    /// How long a session stays valid. Defaults to 8 hours, roughly a working day:
     /// short enough that a stolen cookie has a bounded lifetime.
     /// </summary>
     public TimeSpan SessionLifetime { get; set; } = TimeSpan.FromHours(8);
@@ -71,7 +71,7 @@ public sealed class ReusableAuthOptions
     /// Null (the default) answers <c>401 Unauthorized</c> instead of redirecting.
     /// </summary>
     /// <remarks>
-    /// Set this in an MVC, Razor Pages or Blazor app — a challenge there is expected to
+    /// Set this in an MVC, Razor Pages or Blazor app, where a challenge is expected to
     /// land on a login page, and a bare 401 looks like a broken site. Leave it null in an
     /// API, where a redirect to HTML is worse than useless to a caller expecting JSON.
     /// <para>
@@ -88,7 +88,7 @@ public sealed class ReusableAuthOptions
     /// <remarks>
     /// Same reasoning as <see cref="LoginPath"/>. Note this is for a visitor who <em>is</em>
     /// authenticated and still not allowed, so sending them to a login page is the wrong
-    /// answer — give them a page that says so.
+    /// answer. Give them a page that says so.
     /// </remarks>
     public string? AccessDeniedPath { get; set; }
 
@@ -98,7 +98,7 @@ public sealed class ReusableAuthOptions
     /// </summary>
     /// <remarks>
     /// This is the window in which an already-issued cookie keeps working after the
-    /// user's stamp changes — after a password reset, or after a privilege change that
+    /// user's stamp changes: after a password reset, or after a privilege change that
     /// bumps the stamp. ASP.NET Core Identity defaults this to 30 minutes, which is a
     /// long time for a revoked session to stay live, so this library tightens it.
     /// <para>
@@ -116,7 +116,7 @@ public sealed class ReusableAuthOptions
     /// <remarks>
     /// Auth emails are sent off the request thread, so that
     /// <see cref="IAuthService.RequestPasswordResetAsync"/> takes the same time for a
-    /// registered address as for an unknown one — awaiting an SMTP call only for
+    /// registered address as for an unknown one. Awaiting an SMTP call only for
     /// addresses that exist would answer "does this account exist" to anyone holding a
     /// stopwatch.
     /// <para>
@@ -124,7 +124,7 @@ public sealed class ReusableAuthOptions
     /// unbounded one would let anyone grow it until the process ran out of memory. When
     /// it is full, callers wait for capacity (backpressure) rather than having their
     /// email silently dropped. That wait does not depend on the address, so it discloses
-    /// nothing — but it does mean a flood can slow these endpoints down. Rate limiting
+    /// nothing, but it does mean a flood can slow these endpoints down. Rate limiting
     /// them remains the host's job.
     /// </para>
     /// </remarks>
@@ -195,7 +195,7 @@ public sealed class ReusableAuthOptions
     /// <remarks>
     /// Shorter than <see cref="EmailConfirmationTokenLifetime"/> on purpose. A reset link
     /// is a bearer credential for the account: anyone who reads it owns the account, and
-    /// it sits in an inbox — which is exactly where it is most likely to be read by
+    /// it sits in an inbox, which is exactly where it is most likely to be read by
     /// someone else. An hour is ample for a real person to click a link they just asked
     /// for.
     /// <para>
@@ -210,8 +210,8 @@ public sealed class ReusableAuthOptions
     /// Identity.
     /// </summary>
     /// <remarks>
-    /// Longer than <see cref="PasswordResetTokenLifetime"/> because it grants far less —
-    /// it proves an address, it does not hand over an account — and because confirmation
+    /// Longer than <see cref="PasswordResetTokenLifetime"/> because it grants far less
+    /// (it proves an address, it does not hand over an account) and because confirmation
     /// mail is routinely read the next morning.
     /// <para>
     /// This sets the lifespan of Identity's default data-protection token provider, so it
@@ -227,7 +227,7 @@ public sealed class ReusableAuthOptions
     /// <remarks>
     /// Set this to your application's name. It is what the user reads in Google
     /// Authenticator or 1Password when deciding which of a dozen six-digit codes is yours,
-    /// so leaving it at the default is unhelpful to them — and Identity's own default,
+    /// so leaving it at the default is unhelpful to them, and Identity's own default,
     /// "Microsoft.AspNetCore.Identity.UI", is worse than unhelpful.
     /// <para>
     /// Changing it does not invalidate anything: existing authenticator entries keep the

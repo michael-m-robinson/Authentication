@@ -411,7 +411,7 @@ internal sealed class AuthService<TUser> : IAuthService
     }
 
     /// <summary>
-    /// Resolves the address, decides whether it is eligible, and sends the reset link —
+    /// Resolves the address, decides whether it is eligible, and sends the reset link,
     /// all off the request thread.
     /// </summary>
     /// <remarks>

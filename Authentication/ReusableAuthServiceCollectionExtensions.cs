@@ -90,7 +90,7 @@ public static class ReusableAuthServiceCollectionExtensions
     /// </exception>
     /// <remarks>
     /// <strong>Settings are read once, at startup.</strong> Editing the configuration of a
-    /// running app changes nothing until it restarts — see
+    /// running app changes nothing until it restarts. See
     /// <see cref="AddReusableAuth{TUser}(IServiceCollection, IConfiguration, Action{ReusableAuthOptions}?)"/>
     /// for why that is not a limitation this library can lift.
     /// </remarks>
@@ -124,7 +124,7 @@ public static class ReusableAuthServiceCollectionExtensions
     /// Settings still bind through the same validation, so a configuration file that weakens
     /// or contradicts the auth setup fails the host at boot rather than at runtime.
     /// <para>
-    /// <strong>Settings are read once, at startup — a reload changes nothing.</strong> Binding
+    /// <strong>Settings are read once, at startup; a reload changes nothing.</strong> Binding
     /// a reloading source such as <c>appsettings.json</c> does not make the auth stack
     /// reconfigurable while it runs, and this library cannot make it so. ASP.NET Core Identity
     /// reads its own options through <see cref="IOptions{TOptions}"/>, which resolves once and
@@ -136,7 +136,7 @@ public static class ReusableAuthServiceCollectionExtensions
     /// </para>
     /// <para>
     /// So this exists to let settings live in <c>appsettings.json</c>, environment variables
-    /// or a secret store rather than in code — not to make them changeable without a restart.
+    /// or a secret store rather than in code, not to make them changeable without a restart.
     /// </para>
     /// </remarks>
     public static IServiceCollection AddReusableAuth<TUser>(
@@ -242,7 +242,7 @@ public static class ReusableAuthServiceCollectionExtensions
         // schemes and would fight the hardened one configured above. AddSignInManager
         // already brings ISecurityStampValidator and ITwoFactorSecurityStampValidator
         // with it, which is what the cookies' OnValidatePrincipal resolves.
-        // AddRoles brings Microsoft's RoleManager, and — importantly — swaps the claims
+        // AddRoles brings Microsoft's RoleManager and, importantly, swaps the claims
         // factory for UserClaimsPrincipalFactory<TUser, TRole>, which is what puts role
         // claims into the cookie. That is why [Authorize(Roles = "...")] works against our
         // hardened cookie with nothing further from us. It does NOT register a role store;
@@ -305,8 +305,8 @@ public static class ReusableAuthServiceCollectionExtensions
     /// challenge to land on a login page, while an API caller expecting JSON is not helped
     /// by a 302 to HTML. The host says which by setting the paths or leaving them null.
     /// <para>
-    /// Note the framework would otherwise fill in <c>/Account/Login</c> for us —
-    /// PostConfigureCookieAuthenticationOptions defaults LoginPath when it is unset — so a
+    /// Note the framework would otherwise fill in <c>/Account/Login</c> for us:
+    /// PostConfigureCookieAuthenticationOptions defaults LoginPath when it is unset, so a
     /// host that set no path would silently redirect to a route that probably does not
     /// exist. Overriding the event when no path is configured is what keeps that from
     /// happening.

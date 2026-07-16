@@ -6,11 +6,11 @@ namespace Authentication;
 /// <remarks>
 /// Roles are ASP.NET Core Identity roles, so <c>[Authorize(Roles = "Admins")]</c>,
 /// <c>User.IsInRole("Admins")</c> and <c>RequireRole</c> all work against them with no
-/// extra wiring — the role claims are put into the session cookie by Identity's own
+/// extra wiring: the role claims are put into the session cookie by Identity's own
 /// claims factory.
 /// <para>
 /// <strong>Every method here is complete.</strong> Identity's <c>UserManager</c> does not
-/// refresh the security stamp when roles change — only when a password does — so a naive
+/// refresh the security stamp when roles change, only when a password does, so a naive
 /// <c>AddToRoleAsync</c> leaves the user's existing cookies carrying their old roles until
 /// those cookies expire, which for a <em>removal</em> means a revoked administrator stays
 /// an administrator. The methods here refresh the stamp themselves, so a role change takes
@@ -26,7 +26,7 @@ namespace Authentication;
 /// </para>
 /// <para>
 /// Role names are matched case-insensitively for lookup, but the claim written into the
-/// cookie keeps the casing the role was created with — and
+/// cookie keeps the casing the role was created with, and
 /// <c>[Authorize(Roles = "...")]</c> compares that claim <em>case-sensitively</em>. Create
 /// "Admins" and authorise on "Admins".
 /// </para>
@@ -53,7 +53,7 @@ public interface IRoleService
     /// </returns>
     /// <remarks>
     /// Deleting a role does not, on its own, take it away from anyone signed in. The
-    /// database rows go — Identity cascade-deletes the memberships — but every member's
+    /// database rows go (Identity cascade-deletes the memberships) but every member's
     /// existing cookie still carries the role claim, so
     /// <c>[Authorize(Roles = "Admins")]</c> would keep letting them through until that
     /// cookie expired, for a role that no longer exists.

@@ -8,8 +8,8 @@ namespace Authentication;
 /// Separate from <see cref="IAuthService"/>, which is about proving who someone is. This is
 /// about what they change afterwards.
 /// <para>
-/// Identity refreshes the security stamp itself on every write here — changing an email,
-/// phone or two-factor state all bump it — so unlike role changes these methods do not
+/// Identity refreshes the security stamp itself on every write here: changing an email,
+/// phone or two-factor state all bump it, so unlike role changes these methods do not
 /// need to force it. The effect is the same: the change reaches every session that user has
 /// open within <see cref="ReusableAuthOptions.SecurityStampValidationInterval"/>.
 /// </para>
@@ -28,7 +28,7 @@ public interface IAccountService
     /// </returns>
     /// <remarks>
     /// Nothing is changed here. The address only moves once the person holding the new inbox
-    /// clicks the link and the host calls <see cref="ConfirmEmailChangeAsync"/> — which is
+    /// clicks the link and the host calls <see cref="ConfirmEmailChangeAsync"/>, which is
     /// the point: it proves they own the address before it becomes their sign-in identity.
     /// <para>
     /// The invariable success is deliberate. This library requires unique emails, so telling
@@ -54,7 +54,7 @@ public interface IAccountService
     /// user, a bad or expired token, or an address taken since the link was sent.
     /// </returns>
     /// <remarks>
-    /// The new address is marked confirmed on success — clicking the link is the proof. The
+    /// The new address is marked confirmed on success, since clicking the link is the proof. The
     /// user's other sessions are invalidated, since their sign-in identity just changed.
     /// </remarks>
     Task<AuthResult> ConfirmEmailChangeAsync(string userId, string newEmail, string token);
@@ -70,7 +70,7 @@ public interface IAccountService
     /// </returns>
     /// <remarks>
     /// <strong>This stores a number; it does not prove anyone owns it.</strong> Do not treat
-    /// it as a second factor or a recovery channel — a user can type anyone's number here.
+    /// it as a second factor or a recovery channel: a user can type anyone's number here.
     /// <para>
     /// That is a deliberate limit, not an oversight. Verifying a number means sending a code
     /// to it, ASP.NET Core Identity has no SMS sender of any kind, and this library only
@@ -95,7 +95,7 @@ public interface IAccountService
     /// <returns>The setup material, or <see langword="null"/> for an unknown user.</returns>
     /// <remarks>
     /// This does not turn two-factor on. Show the user the key or a QR code built from the
-    /// URI, then call <see cref="EnableTwoFactorAsync"/> with a code from their app — which
+    /// URI, then call <see cref="EnableTwoFactorAsync"/> with a code from their app, which
     /// is what proves the app is really configured before they start depending on it.
     /// <para>
     /// A user without a key gets one here. An existing key is reused, so calling this twice
@@ -119,7 +119,7 @@ public interface IAccountService
     /// codes they have not been given yet.
     /// <para>
     /// Generate recovery codes straight after with
-    /// <see cref="GenerateRecoveryCodesAsync"/> — a user whose phone is lost or wiped has no
+    /// <see cref="GenerateRecoveryCodesAsync"/>. A user whose phone is lost or wiped has no
     /// other route back in.
     /// </para>
     /// </remarks>
@@ -135,8 +135,8 @@ public interface IAccountService
     /// </returns>
     /// <remarks>
     /// This only stops the second factor being demanded. It deliberately leaves the
-    /// authenticator key alone, so re-enabling later works with the app the user already has
-    /// — matching Identity's own behaviour. To cut the existing app off, use
+    /// authenticator key alone, so re-enabling later works with the app the user already
+    /// has, matching Identity's own behaviour. To cut the existing app off, use
     /// <see cref="ResetAuthenticatorKeyAsync"/>.
     /// </remarks>
     Task<AuthResult> DisableTwoFactorAsync(string userId);

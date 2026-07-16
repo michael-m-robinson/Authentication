@@ -11,9 +11,9 @@ namespace Microsoft.Extensions.DependencyInjection;
 /// </summary>
 /// <remarks>
 /// The store itself is Microsoft's. ASP.NET Core Identity already ships an EF Core store
-/// that implements every interface this library needs — including
+/// that implements every interface this library needs, including
 /// <c>IUserSecurityStampStore</c>, without which session invalidation silently does
-/// nothing — and it is maintained and security-reviewed with each release. Re-implementing
+/// nothing, and it is maintained and security-reviewed with each release. Re-implementing
 /// it would mean re-implementing concurrency-stamp handling and personal-data protection
 /// for credential storage, which is the same mistake as hand-rolling a password hasher.
 /// So this type wires Microsoft's store; it does not replace it.
@@ -55,8 +55,8 @@ public static class ReusableAuthEntityFrameworkServiceCollectionExtensions
     /// a different user type.
     /// </exception>
     /// <remarks>
-    /// Registers Identity's <c>UserOnlyStore</c> — the no-roles store, which is what this
-    /// library composes — as <c>IUserStore&lt;TUser&gt;</c>. Registration uses
+    /// Registers Identity's <c>UserOnlyStore</c>, the no-roles store this library composes,
+    /// as <c>IUserStore&lt;TUser&gt;</c>. Registration uses
     /// <c>TryAdd</c>, so a store you registered yourself wins.
     /// </remarks>
     public static IServiceCollection AddReusableAuthEntityFrameworkStores<TUser, TContext>(
@@ -89,7 +89,7 @@ public static class ReusableAuthEntityFrameworkServiceCollectionExtensions
     /// Microsoft's <c>AddEntityFrameworkStores</c> constrains its context only to
     /// <see cref="DbContext"/>, and it decides which store to wire by looking for an
     /// <c>IdentityDbContext</c> in the context's ancestry. Hand it anything else and it
-    /// does not complain — it quietly registers a store bound to the default POCOs, which
+    /// does not complain. It quietly registers a store bound to the default POCOs, which
     /// then reaches for role entities the model has never heard of and throws from inside
     /// EF, with an error about entity types rather than about the misconfiguration that
     /// caused them. Likewise a context built for a different user type is accepted and

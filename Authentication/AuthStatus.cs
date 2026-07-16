@@ -6,7 +6,7 @@ namespace Authentication;
 /// <remarks>
 /// This deliberately has fewer states than ASP.NET Core Identity's
 /// <c>SignInResult</c>. Identity distinguishes "locked out" and "not allowed" from a
-/// plain failure, and returns those <em>before</em> it verifies the password — so a
+/// plain failure, and returns those <em>before</em> it verifies the password, so a
 /// caller who does not know the password can still learn that an account exists just
 /// by reading the result. This library collapses those cases into
 /// <see cref="Failed"/> instead, per the no-user-enumeration rule in
@@ -53,7 +53,7 @@ public enum AuthStatus
     /// </summary>
     /// <remarks>
     /// Distinct from <see cref="Failed"/> because it describes the password the caller
-    /// just typed, not whether any account exists — so it leaks nothing, and swallowing
+    /// just typed, not whether any account exists, so it leaks nothing, and swallowing
     /// it would leave a caller unable to tell why registration never completed.
     /// Accompanied by the policy messages in <see cref="AuthResult.Errors"/>.
     /// </remarks>
@@ -65,7 +65,7 @@ public enum AuthStatus
     /// </summary>
     /// <remarks>
     /// Used by role management: no such role, no such user, already a member, not a
-    /// member. These are explained rather than hidden because they are not disclosures —
+    /// member. These are explained rather than hidden because they are not disclosures:
     /// role operations are called by your own trusted code with an id it already holds,
     /// not by an anonymous visitor probing for accounts. Hiding the reason there would
     /// buy no security and make every failure undebuggable.

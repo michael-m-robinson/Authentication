@@ -7,9 +7,9 @@ namespace Authentication.Tests.Fakes;
 /// Records what the library asked to have emailed, so tests can assert on it.
 /// </summary>
 /// <remarks>
-/// The register flow's whole non-enumeration story rests on which message goes out — a
-/// confirmation for a new address, a "someone tried to register" notice for a taken one —
-/// so what lands here is the observable behaviour, not an implementation detail.
+/// The register flow's whole non-enumeration story rests on which message goes out: a
+/// confirmation for a new address, a "someone tried to register" notice for a taken one.
+/// So what lands here is the observable behaviour, not an implementation detail.
 /// </remarks>
 internal sealed class RecordingEmailSender : IAuthEmailSender
 {

@@ -27,8 +27,8 @@ namespace Authentication;
 /// <see cref="SendRegistrationAttemptedAsync"/> run inside
 /// <see cref="IAuthService.RegisterAsync"/>, so what they throw reaches its caller.
 /// <see cref="SendPasswordResetAsync"/> runs on a background dispatcher, off the request
-/// that asked for it — it has to, or a registered address would answer measurably slower
-/// than an unknown one — so what it throws is logged and goes no further. Either way,
+/// that asked for it. It has to, or a registered address would answer measurably slower
+/// than an unknown one, so what it throws is logged and goes no further. Either way,
 /// throw on a delivery failure rather than returning quietly; a silent failure is
 /// indistinguishable from a completed send.
 /// </para>
@@ -55,7 +55,7 @@ public interface IAuthEmailSender
     /// <see cref="IAuthService.ResetPasswordAsync"/>.
     /// </param>
     /// <param name="token">
-    /// The URL-safe reset token. Valid for 1 hour — shorter than the confirmation
+    /// The URL-safe reset token. Valid for 1 hour, shorter than the confirmation
     /// token, because a reset link that leaks from an inbox hands over the account.
     /// </param>
     Task SendPasswordResetAsync(string email, string userId, string token);
@@ -68,7 +68,7 @@ public interface IAuthEmailSender
     /// <remarks>
     /// This is what makes the non-enumerating registration honest rather than merely
     /// silent. <see cref="IAuthService.RegisterAsync"/> cannot tell the caller the
-    /// address is taken without confirming the account exists to whoever asked — so it
+    /// address is taken without confirming the account exists to whoever asked, so it
     /// tells the person who actually owns the address instead, over a channel that
     /// already proves ownership.
     /// <para>

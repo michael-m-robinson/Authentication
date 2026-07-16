@@ -446,7 +446,7 @@ public sealed class AccountServiceTests : IDisposable
     /// <remarks>
     /// Not via <c>UserManager.GenerateTwoFactorTokenAsync</c>: for the authenticator provider
     /// that returns an empty string, because the server is not supposed to be able to produce
-    /// these codes — only the user's device can. Verifying "" would pass for the wrong reason
+    /// these codes; only the user's device can. Verifying "" would pass for the wrong reason
     /// and prove nothing about the key we handed out.
     /// </remarks>
     private async Task<string> GenerateAuthenticatorCodeAsync(ReusableAuthUser user)
