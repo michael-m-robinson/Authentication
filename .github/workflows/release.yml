@@ -1,0 +1,106 @@
+# Publish to NuGet on a tagged release.
+#
+# rules/packaging.md: publish only from CI on a tagged release, never from a local build.
+# That is why this only triggers on a tag - the artefact is always traceable to a commit
+# that is pushed and reviewable, and Source Link stamps that commit into the package.
+#
+# The whole gate runs again here rather than trusting CI's earlier green: a tag can point
+# at any commit, including one CI never saw.
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_NOLOGO: true
+
+jobs:
+  publish:
+    name: Pack and publish
+    runs-on: ubuntu-latest
+    # An environment gives a place to require an approval before anything reaches NuGet.
+    # A published version can never be replaced or unpublished - only delisted - so the
+    # cost of a wrong push is permanent.
+    environment: release
+    env:
+      NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Verify formatting
+        run: dotnet format --verify-no-changes
+
+      - name: Build
+        run: dotnet build -c Release --no-restore
+
+      - name: Test
+        run: dotnet test -c Release --no-build
+
+      - name: Audit dependencies
+        run: |
+          set -euo pipefail
+          output=$(dotnet list package --vulnerable --include-transitive 2>&1)
+          echo "$output"
+          if echo "$output" | grep -q "has the following vulnerable packages"; then
+            echo "::error::Vulnerable NuGet packages detected; refusing to publish."
+            exit 1
+          fi
+
+      # The tag is the version. Checking it against the csproj stops a v0.2.0 tag shipping
+      # a package that says 0.1.0 - which cannot be corrected afterwards, since NuGet
+      # versions are immutable once pushed.
+      - name: Check the tag matches the package version
+        run: |
+          set -euo pipefail
+          tag='${{ github.ref_name }}'
+          tag_version="${tag#v}"
+          props_version=$(grep -oP '(?<=<Version>)[^<]+' Directory.Build.props | head -1)
+
+          echo "Tag: $tag_version   Directory.Build.props: $props_version"
+
+          if [ "$tag_version" != "$props_version" ]; then
+            echo "::error::Tag $tag says $tag_version but Directory.Build.props says $props_version."
+            exit 1
+          fi
+
+      - name: Pack
+        run: dotnet pack -c Release --no-build -o artifacts
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages-${{ github.ref_name }}
+          path: artifacts/*
+
+      - name: Report skip
+        if: env.NUGET_API_KEY == ''
+        run: echo "::notice::NUGET_API_KEY is not set; packages were built and attached to this run but not published."
+
+      # --skip-duplicate so re-running a release does not fail on versions already up.
+      #
+      # Worth upgrading when you can: NuGet.org now supports Trusted Publishing, which
+      # swaps this long-lived key for a short-lived OIDC token
+      # (https://learn.microsoft.com/en-us/nuget/nuget-org/trusted-publishing). A key that
+      # never expires is the kind of secret rules/security.md would rather not exist. It
+      # needs a policy configured on the nuget.org account first, so it is not wired here.
+      - name: Publish
+        if: env.NUGET_API_KEY != ''
+        run: >
+          dotnet nuget push artifacts/*.nupkg
+          --api-key "$NUGET_API_KEY"
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
