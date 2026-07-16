@@ -591,15 +591,18 @@ alert that goes with it, and both are written in one transaction.
 Then inject `ILikeService` and `IAlertService`:
 
 ```csharp
-LikeResult result = await likes.LikeAsync(userId, "Article", 42, ct);
+LikeResult result = await likes.LikeAsync(userId, ContentTypes.Article, 42, ct);
 
 result.IsLiked;           // true
 result.LikeCount;         // 1
 result.ContentAvailable;  // false if the content isn't this user's to see
 
-await likes.UnlikeAsync(userId, "Article", 42, ct);
-await likes.GetAsync(userId, "Article", 42, ct);
+await likes.UnlikeAsync(userId, ContentTypes.Article, 42, ct);
+await likes.GetAsync(userId, ContentTypes.Article, 42, ct);
 ```
+
+`ContentTypes` is a class of your own, holding the names of the things your app has.
+[Naming your content types](#naming-your-content-types) below shows it.
 
 ```csharp
 AlertPage page = await alerts.GetAsync(userId, beforeId: null, limit: 20, ct);
@@ -625,6 +628,47 @@ and passing one here hands them everyone else's alerts.
 `beforeId`, and stop when it comes back `null`. Cursors rather than page numbers,
 because alerts arrive while someone is reading them, and page 2 of an offset-paged
 list quietly repeats a row every time a new alert lands.
+
+### Naming your content types
+
+The library takes the kind of thing as a string, because it has never heard of your
+content: `Article`, `Comment` and `Recipe` are your vocabulary, not the library's.
+Written as a literal, that string is a quiet bug waiting to happen. `"Artcile"`
+reaches your `IContentSource`, matches nothing, and comes back as content that isn't
+available: no exception, just a like button that does nothing.
+
+So name them once, in your own code, and never write the literal again:
+
+```csharp
+public static class ContentTypes
+{
+    public const string Article = "Article";
+    public const string Comment = "Comment";
+}
+
+await likes.LikeAsync(userId, ContentTypes.Article, 42, ct);
+```
+
+The compiler now catches the typo. The constants also work in a `switch`, which an
+`IContentSource` covering several types will want.
+
+**Not an enum, and not one the library ships.** The library can't declare an enum of
+types it has never heard of, so it would have to be yours, and it would have to
+become a string at the boundary anyway. That conversion is the whole problem:
+`((int)kind).ToString()` writes `"0"` into the column, and the day anyone reorders
+the enum, every like already stored changes meaning. Constants are the same text in
+your code and in the database, with nothing to convert and nothing to reorder. It's
+the call the library already makes for `AlertTypes`, for the same reason.
+
+If you want an enum for your own code, keep it away from the column and pass
+`nameof`:
+
+```csharp
+await likes.LikeAsync(userId, nameof(ContentKind.Article), 42, ct);
+```
+
+The stored value is then the name rather than the ordinal, so it survives the enum
+being reordered.
 
 ### Telling your users what happened
 
@@ -658,7 +702,7 @@ await alerts.CreateAsync(new CreateAlertRequest(
     RecipientUserId: article.AuthorId,
     AlertType: AlertTypes.ContentCommented,
     ActorUserId: currentUserId,
-    RelatedContentType: "Article",
+    RelatedContentType: ContentTypes.Article,
     RelatedContentId: article.Id), ct);
 ```
 
@@ -685,44 +729,6 @@ The alert stays after the like is removed. It is a record that something happene
 and it did.
 
 Liking your own content tells nobody.
-
-### Naming your content types
-
-`"Article"` above is a magic string, and a typo in one is a quiet bug: `"Artcile"`
-reaches your `IContentSource`, matches nothing, and comes back as content that isn't
-available. No exception, just a like button that does nothing.
-
-Name them once, in your own code:
-
-```csharp
-public static class ContentTypes
-{
-    public const string Article = "Article";
-    public const string Comment = "Comment";
-}
-
-await likes.LikeAsync(userId, ContentTypes.Article, 42, ct);
-```
-
-The compiler now catches the typo, and the constants are usable in a `switch`, which
-an `IContentSource` covering several types will want.
-
-**Not an enum**, and not one the library ships. The library has never heard of your
-content types, so an enum here would have to be yours, and converting it at the
-boundary is where this gets dangerous: `((int)kind).ToString()` stores `"0"`, and
-reordering the enum silently reassigns every like already in the database. Constants
-are the same string in the code and in the column, with nothing to convert and
-nothing to reorder. It's the same call the library makes for `AlertTypes`, for the
-same reason.
-
-If you'd rather have an enum for your own use, keep it away from the column and pass
-`nameof`:
-
-```csharp
-await likes.LikeAsync(userId, nameof(ContentKind.Article), 42, ct);
-```
-
-The stored value stays the name, so it survives the enum being reordered.
 
 ### Describing your content
 
