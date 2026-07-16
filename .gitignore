@@ -485,4 +485,10 @@ $RECYCLE.BIN/
 .DS_Store
 
 # Local, secret-bearing Claude config (rules/security.md)
-.claude/settings.local.json
+#
+# The whole directory, not just settings.local.json. Ignoring the one file leaves
+# settings.json untracked-but-not-ignored, so a git add -A commits it, and the next
+# secret-bearing file anyone drops in here is committed the same way. Ignore the
+# directory and force-add anything that is genuinely meant to be shared:
+#   git add -f .claude/some-shared-file.json
+.claude/
